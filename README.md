@@ -21,4 +21,11 @@ Expect everything to change!
 
 ## Getting started
 
-(Instruction on how to build and run the project, once ther is some code.)
+To build the project use [cmake](https://cmake.org/cmake/help/latest/guide/tutorial/index.html), which is configures the build system for the project using the `CMakeList.txt` file.
+
+```
+cmake -G Ninja -S . -B build
+-- The C compiler identification is GNU 11.2.0
+...
+-- Build files have been written to: .../lamp/build
+```
