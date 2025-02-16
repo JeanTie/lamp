@@ -54,3 +54,4 @@ dkms.conf
 # Env
 .idea/
 build/
+dbg_build/
