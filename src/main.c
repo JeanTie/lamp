@@ -136,23 +136,15 @@ int main() {
     // TODO: Find good solution to initialize srand()
     srand(time(NULL)); // NOLINT: We know about srand() initialization
 
-    // TODO: Develop more ergonomic way to initialize these matrices
-    LampMatrix *input = lamp_mat_alloc(4, NUM_INPUT_NODES);
-    LAMP_MAT_ELEMENT_AT(input, 0, 0) = 0;
-    LAMP_MAT_ELEMENT_AT(input, 0, 1) = 0;
-    LAMP_MAT_ELEMENT_AT(input, 1, 0) = 0;
-    LAMP_MAT_ELEMENT_AT(input, 1, 1) = 1;
-    LAMP_MAT_ELEMENT_AT(input, 2, 0) = 1;
-    LAMP_MAT_ELEMENT_AT(input, 2, 1) = 0;
-    LAMP_MAT_ELEMENT_AT(input, 3, 0) = 1;
-    LAMP_MAT_ELEMENT_AT(input, 3, 1) = 1;
+    LAMP_FLOAT_TYPE lg_in[] = {0, 0,
+                               0, 1,
+                               1, 0,
+                               1, 1};
+    LampMatrix *input = lamp_mat_alloc_from_array(4, 2, lg_in);
 
     // AND-Gate
-    LampMatrix *target = lamp_mat_alloc(input->num_rows, 1);
-    LAMP_MAT_ELEMENT_AT(target, 0, 0) = 0;
-    LAMP_MAT_ELEMENT_AT(target, 1, 0) = 0;
-    LAMP_MAT_ELEMENT_AT(target, 2, 0) = 0;
-    LAMP_MAT_ELEMENT_AT(target, 3, 0) = 1;
+    LAMP_FLOAT_TYPE lg_out[] = {0, 0, 0, 1};
+    LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 1, lg_out);
 
     LampNN nn;
     nn.input.neurons = lamp_mat_alloc(NUM_INPUT_NODES, 1);

@@ -84,6 +84,17 @@ LampMatrix *lamp_mat_alloc_identity(size_t size) {
     return mi;
 }
 
+// Allocate matrix of specified size with content of a flattened 1D array
+LampMatrix *lamp_mat_alloc_from_array(size_t rows, size_t cols, const LAMP_FLOAT_TYPE *content) {
+    LampMatrix *mat = lamp_mat_alloc(rows, cols);
+    for (size_t i = 0; i < mat->num_rows; ++i) {
+        for (size_t j = 0; j < mat->num_cols; ++j) {
+            LAMP_MAT_ELEMENT_AT(mat, i, j) = content[i * mat->num_cols + j];
+        }
+    }
+    return mat;
+}
+
 bool lamp_matrix_equal_dimensions(const LampMatrix *m1, const LampMatrix *m2) {
     return ((m1->num_rows == m2->num_rows) && (m1->num_cols == m2->num_cols));
 }

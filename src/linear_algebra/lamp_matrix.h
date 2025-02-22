@@ -50,6 +50,8 @@ void lamp_mat_rand(LampMatrix *mat);
 
 LampMatrix *lamp_mat_alloc_identity(size_t size);
 
+LampMatrix *lamp_mat_alloc_from_array(size_t rows, size_t cols, const LAMP_FLOAT_TYPE *content);
+
 bool lamp_matrix_equal_dimensions(const LampMatrix *m1, const LampMatrix *m2);
 
 bool lamp_matrix_equal(const LampMatrix *m1, const LampMatrix *m2);
