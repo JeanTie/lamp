@@ -163,6 +163,27 @@ LampMatrix *lamp_mat_alloc_multiply(const LampMatrix *m1, const LampMatrix *m2) 
 
 }
 
+void lamp_mat_add(LampMatrix *dst, const LampMatrix *src) {
+    assert(dst != NULL);
+    assert(src != NULL);
+    assert(lamp_matrix_equal_dimensions(dst, src));
+
+    for (size_t i = 0; i < dst->num_rows; ++i) {
+        for (size_t j = 0; j < dst->num_cols; ++j) {
+            LAMP_MAT_ELEMENT_AT(dst, i, j) += LAMP_MAT_ELEMENT_AT(src, i, j);
+        }
+    }
+}
+
+LampMatrix *lamp_mat_alloc_sum(const LampMatrix *src1, const LampMatrix *src2) {
+    assert(src1 != NULL);
+    assert(src2 != NULL);
+
+    LampMatrix *sum = lamp_mat_alloc_copy(src1);
+    lamp_mat_add(sum, src2);
+    return sum;
+}
+
 LampMatrix *lamp_mat_transpose(const LampMatrix *m) {
     assert(m != NULL);
     LampMatrix *mt = lamp_mat_alloc(m->num_cols, m->num_rows);
