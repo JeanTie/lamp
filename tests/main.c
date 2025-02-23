@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include "../src/linear_algebra/lamp_matrix.h"
+#include "../src/neural_network/lamp_nn.h"
 
 #define LAMP_TEST_FAILED 0x00
 #define LAMP_TEST_PASSED 0x01
@@ -205,6 +206,45 @@ bool test_matrix_transpose(void) {
     return LAMP_TEST_PASSED;
 }
 
+static LampTest matrix_tests[] = {
+        {test_matrix_fill,           "Matrix fill"},
+        {test_matrix_randomize,      "Matrix randomize"},
+        {test_matrix_equals,         "Matrix equals"},
+        {test_matrix_copies,         "Matrix copies"},
+        {test_matrix_multiplication, "Matrix mult"},
+        {test_matrix_allocation,     "Matrix alloc"},
+        {test_matrix_transpose,      "Matrix transpose"}
+};
+
+bool test_nn_alloc(void) {
+    size_t arch[] = {2, 2, 1};
+    LampNN *nn = lamp_nn_alloc(arch, sizeof(arch) / sizeof(arch[0]));
+    if (nn == NULL) {
+        return LAMP_TEST_FAILED;
+    }
+
+    if (nn->layer_count != 3) {
+        return LAMP_TEST_FAILED;
+    }
+
+    if (nn->connection_count != nn->layer_count - 1) {
+        return LAMP_TEST_FAILED;
+    }
+
+    if (nn->layers[0].activations->num_rows != arch[0] ||
+        nn->layers[1].activations->num_rows != arch[1] ||
+        nn->layers[2].activations->num_rows != arch[2]) {
+        return LAMP_TEST_FAILED;
+    }
+
+    lamp_nn_free(nn);
+    return LAMP_TEST_PASSED;
+}
+
+static LampTest nn_tests[] = {
+        {test_nn_alloc, "NN alloc"}
+};
+
 static void show_result(bool success, char *test_name) {
     printf("TEST: %s \t%s\n", test_name, success == LAMP_TEST_PASSED ? "SUCCESS" : "FAILED");
 }
@@ -215,28 +255,19 @@ static bool run_test(const LampTest *test) {
 }
 
 int main() {
-    printf("LAMP Tests\n");
+    printf("LAMP Tests Matrix\n");
 
-    LampTest test_mat_fill = {test_matrix_fill, "Matrix fill"};
-    show_result(run_test(&test_mat_fill), test_mat_fill.desc);
+    int number_of_matrix_test = sizeof(matrix_tests) / sizeof(matrix_tests[0]);
+    for (int i = 0; i < number_of_matrix_test; ++i) {
+        show_result(run_test(&matrix_tests[i]), matrix_tests[i].desc);
+    }
 
-    LampTest test_mat_rand = {test_matrix_randomize, "Matrix randomize"};
-    show_result(run_test(&test_mat_rand), test_mat_rand.desc);
+    printf("\nLAMP Tests NN\n");
+    int number_of_nn_tests = sizeof(nn_tests) / sizeof(nn_tests[0]);
+    for (int i = 0; i < number_of_nn_tests; ++i) {
+        show_result(run_test(&nn_tests[i]), nn_tests[i].desc);
+    }
 
-    LampTest test_mat_equal = {test_matrix_equals, "Matrix equals"};
-    show_result(run_test(&test_mat_equal), test_mat_equal.desc);
-
-    LampTest test_mat_copy = {test_matrix_copies, "Matrix copies"};
-    show_result(run_test(&test_mat_copy), test_mat_copy.desc);
-
-    LampTest test_mat_mult = {test_matrix_multiplication, "Matrix mult"};
-    show_result(run_test(&test_mat_mult), test_mat_mult.desc);
-
-    LampTest test_mat_alloc = {test_matrix_allocation, "Matrix alloc"};
-    show_result(run_test(&test_mat_alloc), test_mat_alloc.desc);
-
-    LampTest test_mat_transpose = {test_matrix_transpose, "Matrix transpose"};
-    show_result(run_test(&test_mat_transpose), test_mat_transpose.desc);
 
     return 0;
 }
