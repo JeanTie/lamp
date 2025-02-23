@@ -32,3 +32,19 @@ cmake -G Ninja -S . -B build
 ...
 -- Build files have been written to: .../lamp/build
 ```
+
+Build the tests:
+```
+cmake --build build --target lamp_test
+-- The C compiler identification is GNU 11.2.0
+...
+-- Build files have been written to: .../lamp/build
+```
+
+
+Build the logic gates example:
+```
+cmake --build build --target lamp_example_logic_gates
+...
+-- Build finished
+```
