@@ -18,6 +18,9 @@ Expect everything to change!
 
 ## Features (Planned)
 * Basic feed forward neural network
+* Examples of different problems that the neural network can solve
+* Backpropagation
+* Visualization
 
 ## Getting started
 
