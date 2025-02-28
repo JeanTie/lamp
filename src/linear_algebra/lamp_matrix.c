@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lamp_matrix.h"
@@ -195,4 +196,17 @@ LampMatrix *lamp_mat_transpose(const LampMatrix *m) {
     }
 
     return mt;
+}
+
+void lamp_mat_print(const LampMatrix *m) {
+    assert(m != NULL);
+    for (size_t i = 0; i < m->num_rows; ++i) {
+        for (size_t j = 0; j < m->num_cols; ++j) {
+            printf("%.4f ", LAMP_MAT_ELEMENT_AT(m, i, j));
+            if (j < m->num_cols - 1) {
+                printf(", ");
+            }
+        }
+        printf("\n");
+    }
 }

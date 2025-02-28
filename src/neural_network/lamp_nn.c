@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "lamp_nn.h"
 
@@ -153,4 +154,23 @@ void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, co
             }
         }
     }
+}
+
+void lamp_nn_print(const LampNN *nn) {
+    assert(nn != NULL && nn->layer_count > 0);
+
+    printf("\tinput:\n");
+    lamp_mat_print(nn->layers[0].activations);
+
+    for (size_t i = 0; i < nn->connection_count; ++i) {
+        LampNNConnection *con = &nn->connections[i];
+
+        printf("\tw%zu\n", i + 1);
+        lamp_mat_print(con->weights);
+        printf("\tb%zu\n", i + 1);
+        lamp_mat_print(con->bias);
+        printf("\ta%zu\n", i + 1);
+        lamp_mat_print(con->layer_end->activations);
+    }
+    printf("\n");
 }

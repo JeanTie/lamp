@@ -72,4 +72,6 @@ LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatr
 void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, const LampMatrix *target,
                                          LAMP_FLOAT_TYPE finite_diff_step, LAMP_FLOAT_TYPE learning_rate);
 
+void lamp_nn_print(const LampNN *nn);
+
 #endif //LAMP_LAMP_NN_H

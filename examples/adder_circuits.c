@@ -58,6 +58,8 @@ int main() {
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
         lamp_mat_rand(nn->connections[i].bias);
+        lamp_mat_fill_with(nn->connections[i].layer_begin->activations, 0.0f);
+        lamp_mat_fill_with(nn->connections[i].layer_end->activations, 0.0f);
     }
 
     LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 2, targs_ha);
@@ -117,7 +119,10 @@ int main() {
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
         lamp_mat_rand(nn->connections[i].bias);
+        lamp_mat_fill_with(nn->connections[i].layer_begin->activations, 0.0f);
+        lamp_mat_fill_with(nn->connections[i].layer_end->activations, 0.0f);
     }
+    lamp_nn_print(nn);
 
     target = lamp_mat_alloc_from_array(input->num_rows, 2, targs_fa);
 
@@ -156,6 +161,7 @@ int main() {
         );
     }
     printf("\n");
+    lamp_nn_print(nn);
 
     return 0;
 }
