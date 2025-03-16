@@ -114,7 +114,7 @@ int main() {
     // NOTE: For this full adder problem we have to change the architecture, since we have to take
     //       more inputs and outputs into account.
 
-    size_t fa_arch[] = {3, 4, 2};
+    size_t fa_arch[] = {3, 8, 3, 2};
     nn = lamp_nn_alloc(fa_arch, sizeof(fa_arch) / sizeof(fa_arch[0]));
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
@@ -137,12 +137,14 @@ int main() {
     LAMP_FLOAT_TYPE l_rate = 1e-2f;
     LAMP_FLOAT_TYPE fds = 1e-1f;
 
-    for (int e = 0; e < 100 * 1000; ++e) {
+    int max_epochs = 100 * 1000;
+    for (int e = 0; e < max_epochs; ++e) {
         lamp_nn_apply_finite_diff_gradients(nn, input, target, fds, l_rate);
-
+        if ((e % 10000) == 0) {
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-            printf("Loss %f\n", loss);
-
+//            lamp_nn_print(nn);
+            printf("[%d/%d] Loss %f (lr %f | fds %f)\n", e, max_epochs, loss, l_rate, fds);
+        }
     }
 
     for (int it = 0; it < input->num_rows; ++it) {
