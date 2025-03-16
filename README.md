@@ -16,15 +16,18 @@ This project is a small, C-based framework for exploring and learning about arti
 This is just the beginning! The framework is in its early stages of development. There are no concrete plans beyond implementing fundamental building blocks.\
 Expect everything to change!
 
-## Features (Planned)
+### Features
 * Basic feed forward neural network
+* Examples for training the network to behave like logic gates and adder circuits
+
+## Features (Planned)
 * Examples of different problems that the neural network can solve
 * Backpropagation
 * Visualization
 
 ## Getting started
 
-To build the project use [cmake](https://cmake.org/cmake/help/latest/guide/tutorial/index.html), which is configures the build system for the project using the `CMakeList.txt` file.
+To build the project use [cmake](https://cmake.org/cmake/help/latest/guide/tutorial/index.html), which configures the build system for the project using the `CMakeList.txt` file.
 
 ```
 cmake -G Ninja -S . -B build
