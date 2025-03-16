@@ -45,11 +45,12 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
     }
 
     for (size_t j = 0; j < nn->connection_count; ++j) {
-        nn->connections[j].layer_begin = &nn->layers[j];
-        nn->connections[j].layer_end = &nn->layers[j + 1];
-        nn->connections[j].weights = lamp_mat_alloc(nn->connections[j].layer_end->activations->num_rows,
-                                                    nn->connections[j].layer_begin->activations->num_rows);
-        nn->connections[j].bias = lamp_mat_alloc(nn->layers[j + 1].activations->num_rows, 1);
+        LampNNConnection *conn = &nn->connections[j];
+        conn->layer_begin = &nn->layers[j];
+        conn->layer_end = &nn->layers[j + 1];
+        conn->weights = lamp_mat_alloc(conn->layer_end->activations->num_rows,
+                                       conn->layer_begin->activations->num_rows);
+        conn->bias = lamp_mat_alloc(nn->layers[j + 1].activations->num_rows, 1);
     }
 
     return nn;
@@ -88,14 +89,15 @@ void lamp_nn_forward(LampNN *nn) {
     // for each layer
 
     for (size_t i = 0; i < nn->connection_count; ++i) {
-        lamp_mat_multiply_into(nn->connections[i].layer_end->activations, nn->connections[i].weights,
-                               nn->connections[i].layer_begin->activations);
-        lamp_mat_add(nn->connections[i].layer_end->activations, nn->connections[i].bias);
+        LampNNConnection *conn = &nn->connections[i];
+        lamp_mat_multiply_into(conn->layer_end->activations, conn->weights,
+                               conn->layer_begin->activations);
+        lamp_mat_add(conn->layer_end->activations, conn->bias);
         // TODO: Maybe introduce something like lamp_mat_sigmoid()?
-        for (size_t j = 0; j < nn->connections[i].layer_end->activations->num_rows; ++j) {
-            for (size_t k = 0; k < nn->connections[i].layer_end->activations->num_cols; ++k) {
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].layer_end->activations, j, k) = sigmoidf(
-                        LAMP_MAT_ELEMENT_AT(nn->connections[i].layer_end->activations, j, k));
+        for (size_t j = 0; j < conn->layer_end->activations->num_rows; ++j) {
+            for (size_t k = 0; k < conn->layer_end->activations->num_cols; ++k) {
+                LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k) = sigmoidf(
+                        LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k));
             }
         }
     }
@@ -134,23 +136,27 @@ void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, co
     LAMP_FLOAT_TYPE original_value;
 
     for (size_t i = 0; i < nn->connection_count; ++i) {
-        for (size_t j = 0; j < nn->connections[i].weights->num_rows; ++j) {
-            for (size_t k = 0; k < nn->connections[i].weights->num_cols; ++k) {
-                original_value = LAMP_MAT_ELEMENT_AT(nn->connections[i].weights, j, k);
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].weights, j,k) += finite_diff_step;
+        LampNNConnection *conn = &nn->connections[i];
+        LampMatrix *weights = conn->weights;
+
+        for (size_t j = 0; j < weights->num_rows; ++j) {
+            for (size_t k = 0; k < weights->num_cols; ++k) {
+                original_value = LAMP_MAT_ELEMENT_AT(weights, j, k);
+                LAMP_MAT_ELEMENT_AT(weights, j, k) += finite_diff_step;
                 LAMP_FLOAT_TYPE grad_w = (lamp_nn_loss(nn, input, target) - init_loss) / finite_diff_step;
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].weights, j,k) = original_value;
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].weights, j, k) -= learning_rate * grad_w;
+                LAMP_MAT_ELEMENT_AT(weights, j, k) = original_value;
+                LAMP_MAT_ELEMENT_AT(weights, j, k) -= learning_rate * grad_w;
             }
         }
 
-        for (size_t j = 0; j < nn->connections[i].bias->num_rows; ++j) {
-            for (size_t k = 0; k < nn->connections[i].bias->num_cols; ++k) {
-                original_value = LAMP_MAT_ELEMENT_AT(nn->connections[i].bias, j, k);
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].bias, j, k) += finite_diff_step;
+        LampMatrix *bias = conn->bias;
+        for (size_t j = 0; j < bias->num_rows; ++j) {
+            for (size_t k = 0; k < bias->num_cols; ++k) {
+                original_value = LAMP_MAT_ELEMENT_AT(bias, j, k);
+                LAMP_MAT_ELEMENT_AT(bias, j, k) += finite_diff_step;
                 LAMP_FLOAT_TYPE grad_b = (lamp_nn_loss(nn, input, target) - init_loss) / finite_diff_step;
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].bias, j, k) = original_value;
-                LAMP_MAT_ELEMENT_AT(nn->connections[i].bias, j, k) -= learning_rate * grad_b;
+                LAMP_MAT_ELEMENT_AT(bias, j, k) = original_value;
+                LAMP_MAT_ELEMENT_AT(bias, j, k) -= learning_rate * grad_b;
             }
         }
     }
