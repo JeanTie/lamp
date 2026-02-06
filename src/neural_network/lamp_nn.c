@@ -51,6 +51,8 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
         conn->weights = lamp_mat_alloc(conn->layer_end->activations->num_rows,
                                        conn->layer_begin->activations->num_rows);
         conn->bias = lamp_mat_alloc(nn->layers[j + 1].activations->num_rows, 1);
+        lamp_mat_rand(conn->weights);
+        lamp_mat_rand(conn->bias);
     }
 
     return nn;
