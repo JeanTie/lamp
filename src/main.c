@@ -22,10 +22,12 @@ int main() {
     // TODO: Find good solution to initialize srand()
     srand(time(NULL)); // NOLINT: We know about srand() initialization
 
-    LAMP_FLOAT_TYPE ins[] = {0, 0,
-                             0, 1,
-                             1, 0,
-                             1, 1};
+    LAMP_FLOAT_TYPE ins[] = {
+        0, 0,
+        0, 1,
+        1, 0,
+        1, 1
+    };
     LampMatrix *input = lamp_mat_alloc_from_array(4, NUM_INPUT_NODES, ins);
 
     // AND-Gate
@@ -40,7 +42,7 @@ int main() {
     }
 
     for (int e = 0; e < 10 * 1000; ++e) {
-        lamp_nn_apply_finite_diff_gradients(nn, input, target, FINITE_DIFF_STEP, LEARNING_RATE);
+        lamp_nn_backprop(nn, input, target, 1.0f);
         LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
         printf("Loss %f\n", loss);
     }
