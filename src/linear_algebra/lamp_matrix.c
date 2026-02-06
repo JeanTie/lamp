@@ -185,7 +185,7 @@ LampMatrix *lamp_mat_alloc_sum(const LampMatrix *src1, const LampMatrix *src2) {
     return sum;
 }
 
-LampMatrix *lamp_mat_transpose(const LampMatrix *m) {
+LampMatrix *lamp_mat_alloc_transpose(const LampMatrix *m) {
     assert(m != NULL);
     LampMatrix *mt = lamp_mat_alloc(m->num_cols, m->num_rows);
 

@@ -74,7 +74,7 @@ void lamp_mat_add(LampMatrix *dst, const LampMatrix *src);
 
 LampMatrix *lamp_mat_alloc_sum(const LampMatrix *src1, const LampMatrix *src2);
 
-LampMatrix *lamp_mat_transpose(const LampMatrix *m);
+LampMatrix *lamp_mat_alloc_transpose(const LampMatrix *m);
 
 void lamp_mat_print(const LampMatrix *m);
 
