@@ -88,9 +88,9 @@ int main() {
         }
 
         for (int e = 0; e < 10 * 1000; ++e) {
-            lamp_nn_apply_finite_diff_gradients(nn, input, target, FINITE_DIFF_STEP, LEARNING_RATE);
+            lamp_nn_backprop(nn, input, target, LEARNING_RATE);
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-//        printf("Loss %f\n", loss);
+            // printf("Loss %f\n", loss);
         }
 
         printf("%s:\n", gate_descriptions[i]);
