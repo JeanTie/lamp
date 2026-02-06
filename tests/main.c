@@ -194,7 +194,7 @@ bool test_matrix_transpose(void) {
     LAMP_MAT_ELEMENT_AT(m1, 1, 0) = 1;
     LAMP_MAT_ELEMENT_AT(m1, 2, 0) = 2;
 
-    LampMatrix *m2 = lamp_mat_transpose(m1);
+    LampMatrix *m2 = lamp_mat_alloc_transpose(m1);
     if ((m1->num_rows != m2->num_cols) || (m1->num_cols != m2->num_rows) ||
         (LAMP_MAT_ELEMENT_AT(m1, 0, 0) != LAMP_MAT_ELEMENT_AT(m2, 0, 0)) ||
         (LAMP_MAT_ELEMENT_AT(m1, 1, 0) != LAMP_MAT_ELEMENT_AT(m2, 0, 1)) ||
