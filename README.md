@@ -17,12 +17,11 @@ This is just the beginning! The framework is in its early stages of development.
 Expect everything to change!
 
 ### Features
-* Basic feed forward neural network
+* Basic feed forward neural network using back-propagation
 * Examples for training the network to behave like logic gates and adder circuits
 
 ## Features (Planned)
 * Examples of different problems that the neural network can solve
-* Backpropagation
 * Visualization
 
 ## Getting started
