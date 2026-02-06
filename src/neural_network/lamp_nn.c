@@ -108,21 +108,26 @@ void lamp_nn_forward(LampNN *nn) {
 LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatrix *target) {
     assert(nn != NULL && input != NULL && target != NULL);
     assert(input->num_rows == target->num_rows);
-    assert(target->num_cols == nn->layers[nn->layer_count - 1].activations->num_cols);
+    assert(target->num_cols == nn->layers[nn->layer_count - 1].activations->num_rows);
 
     // Loss calculation using mean squared error
     // Loss describes the difference of the calculated value of the nn and the target value out
     LAMP_FLOAT_TYPE loss = 0;
+
     for (size_t i = 0; i < input->num_rows; ++i) {
-        // TODO: Find mechanism to assign subsets of matrices to others,
-        //       so we do not have to do this assignment all the time.
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 0, 0) = LAMP_MAT_ELEMENT_AT(input, i, 0);
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 1, 0) = LAMP_MAT_ELEMENT_AT(input, i, 1);
+        // For each sample
+        for (size_t j = 0; j < input->num_cols; ++j) {
+            LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, j, 0)
+                    = LAMP_MAT_ELEMENT_AT(input, i, j);
+        }
 
         lamp_nn_forward(nn);
+
+        LampMatrix *output = nn->layers[nn->layer_count - 1].activations;
         for (size_t j = 0; j < target->num_cols; ++j) {
-            LAMP_FLOAT_TYPE diff = LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 0, j) -
-                                   LAMP_MAT_ELEMENT_AT(target, i, j);
+            LAMP_FLOAT_TYPE diff =
+                    LAMP_MAT_ELEMENT_AT(output, j, 0) -
+                    LAMP_MAT_ELEMENT_AT(target, i, j);
             loss += diff * diff;
         }
     }
