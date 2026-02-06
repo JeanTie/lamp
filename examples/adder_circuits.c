@@ -39,17 +39,19 @@ int main() {
 
     srand(time(NULL)); // NOLINT: We know about srand() initialization
 
-    LAMP_FLOAT_TYPE ins_ha[] = {0, 0,
-                                0, 1,
-                                1, 0,
-                                1, 1};
+    LAMP_FLOAT_TYPE ins_ha[] = {
+        0, 0,
+        0, 1,
+        1, 0,
+        1, 1
+    };
     LampMatrix *input = lamp_mat_alloc_from_array(4, 2, ins_ha);
 
     const LAMP_FLOAT_TYPE targs_ha[] = {
-            0, 0,
-            1, 0,
-            1, 0,
-            0, 1
+        0, 0,
+        1, 0,
+        1, 0,
+        0, 1
     };
 
 
@@ -66,9 +68,9 @@ int main() {
 
 
     for (int e = 0; e < 10 * 1000; ++e) {
-        lamp_nn_apply_finite_diff_gradients(nn, input, target, FINITE_DIFF_STEP, LEARNING_RATE);
+        lamp_nn_backprop(nn, input, target, 1.0f);
         LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-//        printf("Loss %f\n", loss);
+        //        printf("Loss %f\n", loss);
     }
 
     for (int it = 0; it < input->num_rows; ++it) {
@@ -89,26 +91,27 @@ int main() {
     lamp_mat_free(target);
     lamp_nn_free(nn);
 
-    LAMP_FLOAT_TYPE ins_fa[] = {0, 0, 0,
-                                0, 0, 1,
-                                0, 1, 0,
-                                0, 1, 1,
-                                1, 0, 0,
-                                1, 0, 1,
-                                1, 1, 0,
-                                1, 1, 1
+    LAMP_FLOAT_TYPE ins_fa[] = {
+        0, 0, 0,
+        0, 0, 1,
+        0, 1, 0,
+        0, 1, 1,
+        1, 0, 0,
+        1, 0, 1,
+        1, 1, 0,
+        1, 1, 1
     };
     input = lamp_mat_alloc_from_array(8, 3, ins_fa);
 
     const LAMP_FLOAT_TYPE targs_fa[] = {
-            0, 0,
-            1, 0,
-            1, 0,
-            0, 1,
-            1, 0,
-            0, 1,
-            0, 1,
-            1, 1
+        0, 0,
+        1, 0,
+        1, 0,
+        0, 1,
+        1, 0,
+        0, 1,
+        0, 1,
+        1, 1
     };
 
     // NOTE: For this full adder problem we have to change the architecture, since we have to take
@@ -122,28 +125,14 @@ int main() {
         lamp_mat_fill_with(nn->connections[i].layer_begin->activations, 0.0f);
         lamp_mat_fill_with(nn->connections[i].layer_end->activations, 0.0f);
     }
-    lamp_nn_print(nn);
 
     target = lamp_mat_alloc_from_array(input->num_rows, 2, targs_fa);
 
-    // This got fascinating.
-    // I was unable to sufficiently train this network to behave like a full adder.
-    // Since I do not have a clue what I am doing - yet - I just toyed around with some values,
-    // to see if I can find a working configuration manually. Without any great success. Adding more hidden layers,
-    // resulted in the same result (in the best case, often it got worse).
-    // On some lucky seeds I was able to train the network to a loss of ~0.375, where it plateaued.
-    // Maybe this is a local minimum of the adder? Maybe the approximation with the finite difference method
-    // is not good enough? Maybe I am just not smart enough to see the obvious?
-    LAMP_FLOAT_TYPE l_rate = 1e-2f;
-    LAMP_FLOAT_TYPE fds = 1e-1f;
-
-    int max_epochs = 100 * 1000;
-    for (int e = 0; e < max_epochs; ++e) {
-        lamp_nn_apply_finite_diff_gradients(nn, input, target, fds, l_rate);
+    for (int e = 0; e < 100 * 1000; ++e) {
+        lamp_nn_backprop(nn, input, target, 1.0f);
         if ((e % 10000) == 0) {
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-//            lamp_nn_print(nn);
-            printf("[%d/%d] Loss %f (lr %f | fds %f)\n", e, max_epochs, loss, l_rate, fds);
+            // printf("Loss %f\n", loss);
         }
     }
 
@@ -163,7 +152,9 @@ int main() {
         );
     }
     printf("\n");
-    lamp_nn_print(nn);
+    lamp_mat_free(input);
+    lamp_mat_free(target);
+    lamp_nn_free(nn);
 
     return 0;
 }
