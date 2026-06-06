@@ -241,8 +241,38 @@ bool test_nn_alloc(void) {
     return LAMP_TEST_PASSED;
 }
 
+bool test_nn_alloc_with(void) {
+    // Architectural helper should produce equivalent architecture to raw lamp_nn_alloc
+    size_t arch[] = {2, 2, 1};
+    LampNN *nn_raw = lamp_nn_alloc(arch, sizeof(arch) / sizeof(arch[0]));
+
+    size_t hidden[] = {2};
+    LampNN *nn_with = lamp_nn_alloc_with(2, 1, hidden, 1);
+
+    bool ok = LAMP_TEST_PASSED;
+
+    if (nn_raw->layer_count != nn_with->layer_count) {
+        ok = LAMP_TEST_FAILED;
+    } else if (nn_raw->connection_count != nn_with->connection_count) {
+        ok = LAMP_TEST_FAILED;
+    }
+
+    if (ok == LAMP_TEST_PASSED) {
+        for (size_t i = 0; i < nn_raw->layer_count && ok == LAMP_TEST_PASSED; ++i) {
+            if (nn_raw->layers[i].activations->num_rows != nn_with->layers[i].activations->num_rows) {
+                ok = LAMP_TEST_FAILED;
+            }
+        }
+    }
+
+    lamp_nn_free(nn_raw);
+    lamp_nn_free(nn_with);
+    return ok;
+}
+
 static LampTest nn_tests[] = {
-        {test_nn_alloc, "NN alloc"}
+        {test_nn_alloc, "NN alloc"},
+        {test_nn_alloc_with, "NN alloc_with"}
 };
 
 static void show_result(bool success, char *test_name) {

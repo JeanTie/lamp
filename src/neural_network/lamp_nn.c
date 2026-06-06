@@ -58,6 +58,32 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
     return nn;
 }
 
+LampNN *lamp_nn_alloc_with(size_t input_nodes, size_t hidden_layers, const size_t hidden_activations[], size_t output_nodes) {
+    assert(input_nodes > 0);
+    assert(output_nodes > 0);
+    assert(hidden_layers == 0 || hidden_activations != NULL);
+
+    // No hidden layers: just input + output (2 total layers)
+    if (hidden_layers == 0) {
+        size_t arch[] = {input_nodes, output_nodes};
+        return lamp_nn_alloc(arch, 2);
+    }
+
+    size_t layer_count = 1 + hidden_layers + 1; // input + hidden + output
+    size_t *arch = malloc(sizeof(size_t) * layer_count);
+    assert(arch != NULL);
+
+    arch[0] = input_nodes;
+    for (size_t i = 0; i < hidden_layers; ++i) {
+        arch[i + 1] = hidden_activations[i];
+    }
+    arch[layer_count - 1] = output_nodes;
+
+    LampNN *nn = lamp_nn_alloc(arch, layer_count);
+    free(arch);
+    return nn;
+}
+
 void lamp_nn_free(LampNN *nn) {
     assert(nn != NULL);
 

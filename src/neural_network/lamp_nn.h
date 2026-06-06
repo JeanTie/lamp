@@ -58,10 +58,12 @@ typedef struct {
 // The architecture is specified by an array of values, that describe the number of neurons
 // of their corresponding layer.
 // E.g [2, 2, 1] => 2 input neuron, 2 hidden neuron, 1 output neuron => 3 layers
-// TODO: Maybe have a more specific way of defining the architecture?
-//       Since we always have an input and output layer it may be more intuitive to specify them
-//       explicitly and providing the hidden layer description separately?
 LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count);
+
+// Split input/output from hidden layers for clarity:
+// input_nodes neurons + hidden_layers of (hidden_activations) + output_nodes neurons.
+// Equivalent to lamp_nn_alloc with [input, h1, ..., hn, output] and count == n + 2.
+LampNN *lamp_nn_alloc_with(size_t input_nodes, size_t hidden_layers, const size_t hidden_activations[], size_t output_nodes);
 
 void lamp_nn_free(LampNN *nn);
 
