@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdlib.h>
+
 #include "../src/linear_algebra/lamp_matrix.h"
 #include "../src/neural_network/lamp_nn.h"
 
@@ -270,9 +272,41 @@ bool test_nn_alloc_with(void) {
     return ok;
 }
 
+bool test_nn_forward_single(void) {
+    srand(42);
+    size_t hidden[] = {2};
+    LampNN *nn_raw = lamp_nn_alloc_with(2, 1, hidden, 1);
+
+    // Make a second identical copy network for comparison
+    srand(42);
+    size_t hidden2[] = {2};
+    LampNN *nn_test = lamp_nn_alloc_with(2, 1, hidden2, 1);
+
+    const float sample_data[] = {1.0f, 0.8f};
+    const LampMatrix *sample = lamp_mat_alloc_from_array(2, 1, sample_data);
+
+    LAMP_MAT_ELEMENT_AT(nn_raw->layers[0].activations, 0, 0) = LAMP_MAT_ELEMENT_AT(sample, 0, 0);
+    LAMP_MAT_ELEMENT_AT(nn_raw->layers[0].activations, 1, 0) = LAMP_MAT_ELEMENT_AT(sample, 1, 0);
+    lamp_nn_forward(nn_raw);
+
+    lamp_nn_forward_single(nn_test, sample);
+
+    const float out_a = LAMP_MAT_ELEMENT_AT(nn_raw->layers[nn_raw->layer_count - 1].activations, 0, 0);
+    const float out_b = LAMP_MAT_ELEMENT_AT(nn_test->layers[nn_test->layer_count - 1].activations, 0, 0);
+
+    bool ok = LAMP_TEST_PASSED;
+
+    if (out_a != out_b) {
+        ok = LAMP_TEST_FAILED;
+    }
+
+    return ok;
+}
+
 static LampTest nn_tests[] = {
-        {test_nn_alloc, "NN alloc"},
-        {test_nn_alloc_with, "NN alloc_with"}
+    {test_nn_alloc, "NN alloc"},
+    {test_nn_alloc_with, "NN alloc_with"},
+    {test_nn_forward_single, "NN forward single"},
 };
 
 static void show_result(bool success, char *test_name) {

@@ -69,6 +69,8 @@ void lamp_nn_free(LampNN *nn);
 
 void lamp_nn_forward(LampNN *nn);
 
+void lamp_nn_forward_single(LampNN *nn, const LampMatrix *sample);
+
 LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatrix *target);
 
 void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, const LampMatrix *target,

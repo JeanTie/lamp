@@ -137,6 +137,20 @@ void lamp_nn_forward(LampNN *nn) {
     }
 }
 
+void lamp_nn_forward_single(LampNN *nn, const LampMatrix *sample) {
+    assert(nn != NULL && sample != NULL);
+    const size_t input_size = nn->layers[0].activations->num_rows;
+    assert(sample->num_rows == input_size);
+    assert(sample->num_cols == 1);
+
+    for (size_t i = 0; i < input_size; ++i) {
+        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, i, 0) =
+            LAMP_MAT_ELEMENT_AT(sample, i, 0);
+    }
+
+    lamp_nn_forward(nn);
+}
+
 LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatrix *target) {
     assert(nn != NULL && input != NULL && target != NULL);
     assert(input->num_rows == target->num_rows);
