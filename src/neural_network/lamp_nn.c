@@ -116,7 +116,7 @@ static LAMP_FLOAT_TYPE sigmoid_derivative(LAMP_FLOAT_TYPE pre_act_value) {
     return a * (1.0f - a);
 }
 
-const LampNNActivationConfig LAMP_ACTIVATION_SIGMOID = {
+LampNNActivationConfig LAMP_ACTIVATION_SIGMOID = {
     .activate = sigmoid_activate,
     .derivative = sigmoid_derivative,
     .name = "sigmoid",
@@ -131,7 +131,7 @@ static LAMP_FLOAT_TYPE relu_derivative(LAMP_FLOAT_TYPE pre_act_value) {
     return (pre_act_value > 0) ? 1.0f : 0.0f;
 }
 
-const LampNNActivationConfig LAMP_ACTIVATION_RELU = {
+LampNNActivationConfig LAMP_ACTIVATION_RELU = {
     .activate = relu_activate,
     .derivative = relu_derivative,
     .name = "relu",
@@ -147,7 +147,7 @@ static LAMP_FLOAT_TYPE tanh_derivative(LAMP_FLOAT_TYPE pre_act_value) {
     return 1.0f - a * a;
 }
 
-const LampNNActivationConfig LAMP_ACTIVATION_TANH = {
+LampNNActivationConfig LAMP_ACTIVATION_TANH = {
     .activate = tanh_activate,
     .derivative = tanh_derivative,
     .name = "tanh",

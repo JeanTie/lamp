@@ -21,6 +21,7 @@
 int main() {
     // Try learning behavior of logic gates - because everybody does this in the beginning ;)
 
+    LAMP_ACTIVATION_RELU.learning_rate = 0.24f;
     const LampNNActivationConfig activation_configs[NUMBER_OF_ACTIVATION_FUNCS] = {
         LAMP_ACTIVATION_SIGMOID,
         LAMP_ACTIVATION_RELU,

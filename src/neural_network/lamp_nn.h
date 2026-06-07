@@ -65,9 +65,9 @@ typedef struct {
 } LampNN;
 
 /* Predefined activation function configs — use with lamp_nn_set_activation */
-extern const LampNNActivationConfig LAMP_ACTIVATION_SIGMOID;
-extern const LampNNActivationConfig LAMP_ACTIVATION_RELU;
-extern const LampNNActivationConfig LAMP_ACTIVATION_TANH;
+extern LampNNActivationConfig LAMP_ACTIVATION_SIGMOID;
+extern LampNNActivationConfig LAMP_ACTIVATION_RELU;
+extern LampNNActivationConfig LAMP_ACTIVATION_TANH;
 
 // Allocate neural network with specified architecture.
 // The architecture is specified by an array of values, that describe the number of neurons
