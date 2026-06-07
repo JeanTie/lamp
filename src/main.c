@@ -34,8 +34,8 @@ int main() {
     LAMP_FLOAT_TYPE targs[] = {0, 0, 0, 1};
     LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 1, targs);
 
-    size_t architecture[] = {NUM_INPUT_NODES, NUM_HIDDEN_NODES, NUM_OUTPUT_NODES};
-    LampNN *nn = lamp_nn_alloc(architecture, sizeof(architecture) / sizeof(architecture[0]));
+    size_t hidden[] = {NUM_HIDDEN_NODES};
+    LampNN *nn = lamp_nn_alloc_with(NUM_INPUT_NODES, 1, hidden, NUM_OUTPUT_NODES);
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
         lamp_mat_rand(nn->connections[i].bias);
@@ -48,14 +48,22 @@ int main() {
     }
 
     for (int it = 0; it < input->num_rows; ++it) {
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 0, 0) = LAMP_MAT_ELEMENT_AT(input, it, 0);
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 1, 0) = LAMP_MAT_ELEMENT_AT(input, it, 1);
-        lamp_nn_forward(nn);
-        printf("[%f, %f] -> [%f] (%f)\n",
+        float sample_data[] = {
+            LAMP_MAT_ELEMENT_AT(input, it, 0),
+            LAMP_MAT_ELEMENT_AT(input, it, 1)
+        };
+        LampMatrix *sample = lamp_mat_alloc_from_array(NUM_INPUT_NODES, 1, sample_data);
+
+        lamp_nn_forward_single(nn, sample);
+        const LampMatrix *out = lamp_nn_get_output(nn);
+
+        printf("[%f, %f] -> [%f]    (target: %f)\n",
                LAMP_MAT_ELEMENT_AT(input, it, 0),
                LAMP_MAT_ELEMENT_AT(input, it, 1),
-               LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 0, 0),
+               LAMP_MAT_ELEMENT_AT(out, 0, 0),
                LAMP_MAT_ELEMENT_AT(target, it, 0));
+
+        lamp_mat_free(sample);
     }
 
     lamp_nn_free(nn);

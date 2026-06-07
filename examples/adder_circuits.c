@@ -55,8 +55,8 @@ int main() {
     };
 
 
-    size_t architecture[] = {HALF_ADD_INPUTS, HALF_ADD_HIDDEN, HALF_ADD_OUT};
-    LampNN *nn = lamp_nn_alloc(architecture, sizeof(architecture) / sizeof(architecture[0]));
+    size_t half_add_hidden[] = {HALF_ADD_HIDDEN};
+    LampNN *nn = lamp_nn_alloc_with(HALF_ADD_INPUTS, 1, half_add_hidden, HALF_ADD_OUT);
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
         lamp_mat_rand(nn->connections[i].bias);
@@ -74,16 +74,24 @@ int main() {
     }
 
     for (int it = 0; it < input->num_rows; ++it) {
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 0, 0) = LAMP_MAT_ELEMENT_AT(input, it, 0);
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 1, 0) = LAMP_MAT_ELEMENT_AT(input, it, 1);
-        lamp_nn_forward(nn);
+        float sample_data[] = {
+            (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(input, it, 0),
+            (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(input, it, 1)
+        };
+        LampMatrix *sample = lamp_mat_alloc_from_array(HALF_ADD_INPUTS, 1, sample_data);
+
+        lamp_nn_forward_single(nn, sample);
+        const LampMatrix *out = lamp_nn_get_output(nn);
+
         printf("[%f, %f] -> [%f, %f] (%f, %f)\n",
                LAMP_MAT_ELEMENT_AT(input, it, 0),
                LAMP_MAT_ELEMENT_AT(input, it, 1),
-               LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 0, 0),
-               LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 1, 0),
+               (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(out, 0, 0),
+               (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(out, 1, 0),
                LAMP_MAT_ELEMENT_AT(target, it, 0),
                LAMP_MAT_ELEMENT_AT(target, it, 1));
+
+        lamp_mat_free(sample);
     }
     printf("\n");
 
@@ -117,8 +125,8 @@ int main() {
     // NOTE: For this full adder problem we have to change the architecture, since we have to take
     //       more inputs and outputs into account.
 
-    size_t fa_arch[] = {3, 8, 3, 2};
-    nn = lamp_nn_alloc(fa_arch, sizeof(fa_arch) / sizeof(fa_arch[0]));
+    size_t fa_hidden[] = {8, 3};
+    nn = lamp_nn_alloc_with(3, 2, fa_hidden, 2);
     for (int i = 0; i < nn->connection_count; ++i) {
         lamp_mat_rand(nn->connections[i].weights);
         lamp_mat_rand(nn->connections[i].bias);
@@ -132,24 +140,32 @@ int main() {
         lamp_nn_backprop(nn, input, target, 1.0f);
         if ((e % 10000) == 0) {
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-            // printf("Loss %f\n", loss);
+            printf("Loss %f\n", loss);
         }
     }
 
     for (int it = 0; it < input->num_rows; ++it) {
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 0, 0) = LAMP_MAT_ELEMENT_AT(input, it, 0);
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 1, 0) = LAMP_MAT_ELEMENT_AT(input, it, 1);
-        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, 2, 0) = LAMP_MAT_ELEMENT_AT(input, it, 2);
-        lamp_nn_forward(nn);
+        float sample_data[] = {
+            (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(input, it, 0),
+            (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(input, it, 1),
+            (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(input, it, 2)
+        };
+        LampMatrix *sample = lamp_mat_alloc_from_array(3, 1, sample_data);
+
+        lamp_nn_forward_single(nn, sample);
+        const LampMatrix *out = lamp_nn_get_output(nn);
+
         printf("[%f, %f, %f] -> [%f, %f] (%f, %f)\n",
                LAMP_MAT_ELEMENT_AT(input, it, 0),
                LAMP_MAT_ELEMENT_AT(input, it, 1),
                LAMP_MAT_ELEMENT_AT(input, it, 2),
-               LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 0, 0),
-               LAMP_MAT_ELEMENT_AT(nn->layers[nn->layer_count - 1].activations, 1, 0),
+               (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(out, 0, 0),
+               (LAMP_FLOAT_TYPE) LAMP_MAT_ELEMENT_AT(out, 1, 0),
                LAMP_MAT_ELEMENT_AT(target, it, 0),
                LAMP_MAT_ELEMENT_AT(target, it, 1)
         );
+
+        lamp_mat_free(sample);
     }
     printf("\n");
     lamp_mat_free(input);
