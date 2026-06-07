@@ -48,11 +48,25 @@ typedef struct {
 // For easy reference we also store the number of individual layers, as well as the
 // amount of connections.
 typedef struct {
+    LAMP_FLOAT_TYPE (*activate)(LAMP_FLOAT_TYPE x);
+    LAMP_FLOAT_TYPE (*derivative)(LAMP_FLOAT_TYPE x);
+    const char *name;
+} LampNNActivationConfig;
+
+typedef struct {
     LampNNLayer *layers;
     size_t layer_count;
     LampNNConnection *connections;
     size_t connection_count;
+
+    /* Activation function config — applied to every layer */
+    const LampNNActivationConfig *config;
 } LampNN;
+
+/* Predefined activation function configs — use with lamp_nn_set_activation */
+extern const LampNNActivationConfig LAMP_ACTIVATION_SIGMOID;
+extern const LampNNActivationConfig LAMP_ACTIVATION_RELU;
+extern const LampNNActivationConfig LAMP_ACTIVATION_TANH;
 
 // Allocate neural network with specified architecture.
 // The architecture is specified by an array of values, that describe the number of neurons
@@ -64,6 +78,8 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count);
 // input_nodes neurons + hidden_layers of (hidden_activations) + output_nodes neurons.
 // Equivalent to lamp_nn_alloc with [input, h1, ..., hn, output] and count == n + 2.
 LampNN *lamp_nn_alloc_with(size_t input_nodes, size_t hidden_layers, const size_t hidden_activations[], size_t output_nodes);
+
+void lamp_nn_set_activation(LampNN *nn, const LampNNActivationConfig *config);
 
 void lamp_nn_free(LampNN *nn);
 

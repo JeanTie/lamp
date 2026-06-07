@@ -55,6 +55,9 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
         lamp_mat_rand(conn->bias);
     }
 
+    /* Default to sigmoid activation */
+    nn->config = &LAMP_ACTIVATION_SIGMOID;
+
     return nn;
 }
 
@@ -101,18 +104,56 @@ void lamp_nn_free(LampNN *nn) {
     free(nn);
 }
 
-// TODO: Design a way to specify activation function instead of hard coding it here.
 #define LAMP_EXP(x) expf(x)
 
-static // Use sigmoid because it is easy and convenient for this test
-LAMP_FLOAT_TYPE sigmoidf(LAMP_FLOAT_TYPE x) {
+/* Predefined activation configurations */
+static LAMP_FLOAT_TYPE sigmoid_activate(LAMP_FLOAT_TYPE x) {
     return 1.0f / (1 + LAMP_EXP(-x));
 }
 
-static // Derivative of sigmoidf
-LAMP_FLOAT_TYPE d_sigmoidf(LAMP_FLOAT_TYPE x) {
-    LAMP_FLOAT_TYPE s = sigmoidf(x);
-    return s * (1.0f - s);
+static LAMP_FLOAT_TYPE sigmoid_derivative(LAMP_FLOAT_TYPE pre_act_value) {
+    LAMP_FLOAT_TYPE a = sigmoid_activate(pre_act_value);
+    return a * (1.0f - a);
+}
+
+const LampNNActivationConfig LAMP_ACTIVATION_SIGMOID = {
+    .activate = sigmoid_activate,
+     .derivative = sigmoid_derivative,
+     .name = "sigmoid"
+};
+
+static LAMP_FLOAT_TYPE relu_activate(LAMP_FLOAT_TYPE x) {
+    return (x > 0) ? x : 0.0f;
+}
+
+static LAMP_FLOAT_TYPE relu_derivative(LAMP_FLOAT_TYPE pre_act_value) {
+    return (pre_act_value > 0) ? 1.0f : 0.0f;
+}
+
+const LampNNActivationConfig LAMP_ACTIVATION_RELU = {
+    .activate = relu_activate,
+     .derivative = relu_derivative,
+     .name = "relu"
+};
+
+static LAMP_FLOAT_TYPE tanh_activate(LAMP_FLOAT_TYPE x) {
+    return tanhf(x);
+}
+
+static LAMP_FLOAT_TYPE tanh_derivative(LAMP_FLOAT_TYPE pre_act_value) {
+    LAMP_FLOAT_TYPE a = tanhf(pre_act_value);
+    return 1.0f - a * a;
+}
+
+const LampNNActivationConfig LAMP_ACTIVATION_TANH = {
+    .activate = tanh_activate,
+     .derivative = tanh_derivative,
+     .name = "tanh"
+};
+
+void lamp_nn_set_activation(LampNN *nn, const LampNNActivationConfig *config) {
+    assert(nn != NULL && config != NULL);
+    nn->config = config;
 }
 
 void lamp_nn_forward(LampNN *nn) {
@@ -127,10 +168,9 @@ void lamp_nn_forward(LampNN *nn) {
         lamp_mat_multiply_into(conn->layer_end->activations, conn->weights,
                                conn->layer_begin->activations);
         lamp_mat_add(conn->layer_end->activations, conn->bias);
-        // TODO: Maybe introduce something like lamp_mat_sigmoid()?
         for (size_t j = 0; j < conn->layer_end->activations->num_rows; ++j) {
             for (size_t k = 0; k < conn->layer_end->activations->num_cols; ++k) {
-                LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k) = sigmoidf(
+                LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k) = nn->config->activate(
                     LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k));
             }
         }
@@ -280,7 +320,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
             LAMP_FLOAT_TYPE act = LAMP_MAT_ELEMENT_AT(output, i, 0);
             LAMP_FLOAT_TYPE pre_act = LAMP_MAT_ELEMENT_AT(pre_activations[out_idx], i, 0);
             LAMP_FLOAT_TYPE tgt = LAMP_MAT_ELEMENT_AT(target, s, i); // sample s, output i
-            LAMP_MAT_ELEMENT_AT(delta[out_idx], i, 0) = (act - tgt) * d_sigmoidf(pre_act);
+            LAMP_MAT_ELEMENT_AT(delta[out_idx], i, 0) = (act - tgt) * nn->config->derivative(pre_act);
         }
 
         // Hidden layer deltas (backpropagate)
@@ -289,7 +329,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
                 LampMatrix *w_trans = lamp_mat_alloc_transpose(nn->connections[c].weights);
                 LampMatrix *delta_in = lamp_mat_alloc_multiply(w_trans, delta[c + 1]);
                 for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(delta_in); ++e) {
-                    delta_in->elements[e] *= d_sigmoidf(pre_activations[c]->elements[e]);
+                    delta_in->elements[e] *= nn->config->derivative(pre_activations[c]->elements[e]);
                 }
                 lamp_mat_copy_into(delta[c], delta_in);
                 lamp_mat_free(w_trans);
