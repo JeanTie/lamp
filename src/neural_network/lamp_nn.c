@@ -118,8 +118,8 @@ static LAMP_FLOAT_TYPE sigmoid_derivative(LAMP_FLOAT_TYPE pre_act_value) {
 
 const LampNNActivationConfig LAMP_ACTIVATION_SIGMOID = {
     .activate = sigmoid_activate,
-     .derivative = sigmoid_derivative,
-     .name = "sigmoid"
+    .derivative = sigmoid_derivative,
+    .name = "sigmoid"
 };
 
 static LAMP_FLOAT_TYPE relu_activate(LAMP_FLOAT_TYPE x) {
@@ -132,8 +132,8 @@ static LAMP_FLOAT_TYPE relu_derivative(LAMP_FLOAT_TYPE pre_act_value) {
 
 const LampNNActivationConfig LAMP_ACTIVATION_RELU = {
     .activate = relu_activate,
-     .derivative = relu_derivative,
-     .name = "relu"
+    .derivative = relu_derivative,
+    .name = "relu"
 };
 
 static LAMP_FLOAT_TYPE tanh_activate(LAMP_FLOAT_TYPE x) {
@@ -147,8 +147,8 @@ static LAMP_FLOAT_TYPE tanh_derivative(LAMP_FLOAT_TYPE pre_act_value) {
 
 const LampNNActivationConfig LAMP_ACTIVATION_TANH = {
     .activate = tanh_activate,
-     .derivative = tanh_derivative,
-     .name = "tanh"
+    .derivative = tanh_derivative,
+    .name = "tanh"
 };
 
 void lamp_nn_set_activation(LampNN *nn, const LampNNActivationConfig *config) {
