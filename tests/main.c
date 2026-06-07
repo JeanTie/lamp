@@ -303,10 +303,37 @@ bool test_nn_forward_single(void) {
     return ok;
 }
 
+bool test_nn_get_output(void) {
+    srand(42);
+    size_t hidden[] = {2};
+    LampNN *nn = lamp_nn_alloc_with(2, 1, hidden, 1);
+
+    float sample_data[] = {1.0f, 0.5f};
+    LampMatrix *sample = lamp_mat_alloc_from_array(2, 1, sample_data);
+    lamp_nn_forward_single(nn, sample);
+
+    const LampMatrix *output = lamp_nn_get_output(nn);
+
+    bool ok = LAMP_TEST_PASSED;
+    if (output == NULL || output->num_rows != 1 || output->num_cols != 1) {
+        ok = LAMP_TEST_FAILED;
+    }
+
+    // Verify it matches direct access to last layer activations
+    const LampMatrix *direct_output = nn->layers[nn->layer_count - 1].activations;
+    if (output != direct_output) {
+        ok = LAMP_TEST_FAILED;
+    }
+
+    lamp_nn_free(nn);
+    return ok;
+}
+
 static LampTest nn_tests[] = {
     {test_nn_alloc, "NN alloc"},
     {test_nn_alloc_with, "NN alloc_with"},
     {test_nn_forward_single, "NN forward single"},
+    {test_nn_get_output, "NN get output"},
 };
 
 static void show_result(bool success, char *test_name) {

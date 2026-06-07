@@ -151,6 +151,11 @@ void lamp_nn_forward_single(LampNN *nn, const LampMatrix *sample) {
     lamp_nn_forward(nn);
 }
 
+const LampMatrix *lamp_nn_get_output(const LampNN *nn) {
+    assert(nn != NULL && nn->layer_count > 0);
+    return nn->layers[nn->layer_count - 1].activations;
+}
+
 LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatrix *target) {
     assert(nn != NULL && input != NULL && target != NULL);
     assert(input->num_rows == target->num_rows);
