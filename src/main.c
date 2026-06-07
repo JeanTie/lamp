@@ -16,57 +16,73 @@
 #define LEARNING_RATE 1e-1f
 #define FINITE_DIFF_STEP 1e-1f
 
+#define NUMBER_OF_ACTIVATION_FUNCS 3
+
 int main() {
     // Try learning behavior of logic gates - because everybody does this in the beginning ;)
 
-    // TODO: Find good solution to initialize srand()
-    srand(time(NULL)); // NOLINT: We know about srand() initialization
-
-    LAMP_FLOAT_TYPE ins[] = {
-        0, 0,
-        0, 1,
-        1, 0,
-        1, 1
+    const LampNNActivationConfig activation_configs[NUMBER_OF_ACTIVATION_FUNCS] = {
+        LAMP_ACTIVATION_SIGMOID,
+        LAMP_ACTIVATION_RELU,
+        LAMP_ACTIVATION_TANH,
     };
-    LampMatrix *input = lamp_mat_alloc_from_array(4, NUM_INPUT_NODES, ins);
 
-    // AND-Gate
-    LAMP_FLOAT_TYPE targs[] = {0, 0, 0, 1};
-    LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 1, targs);
+    for (int i = 0; i < NUMBER_OF_ACTIVATION_FUNCS; ++i) {
+        // TODO: Find good solution to initialize srand()
+        srand(time(NULL)); // NOLINT: We know about srand() initialization
 
-    size_t hidden[] = {NUM_HIDDEN_NODES};
-    LampNN *nn = lamp_nn_alloc_with(NUM_INPUT_NODES, 1, hidden, NUM_OUTPUT_NODES);
-    for (int i = 0; i < nn->connection_count; ++i) {
-        lamp_mat_rand(nn->connections[i].weights);
-        lamp_mat_rand(nn->connections[i].bias);
-    }
-
-    for (int e = 0; e < 10 * 1000; ++e) {
-        lamp_nn_backprop(nn, input, target, 1.0f);
-        LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-        printf("Loss %f\n", loss);
-    }
-
-    for (int it = 0; it < input->num_rows; ++it) {
-        float sample_data[] = {
-            LAMP_MAT_ELEMENT_AT(input, it, 0),
-            LAMP_MAT_ELEMENT_AT(input, it, 1)
+        LAMP_FLOAT_TYPE ins[] = {
+            0, 0,
+            0, 1,
+            1, 0,
+            1, 1
         };
-        LampMatrix *sample = lamp_mat_alloc_from_array(NUM_INPUT_NODES, 1, sample_data);
+        LampMatrix *input = lamp_mat_alloc_from_array(4, NUM_INPUT_NODES, ins);
 
-        lamp_nn_forward_single(nn, sample);
-        const LampMatrix *out = lamp_nn_get_output(nn);
+        // AND-Gate
+        LAMP_FLOAT_TYPE targs[] = {0, 0, 0, 1};
+        LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 1, targs);
 
-        printf("[%f, %f] -> [%f]    (target: %f)\n",
-               LAMP_MAT_ELEMENT_AT(input, it, 0),
-               LAMP_MAT_ELEMENT_AT(input, it, 1),
-               LAMP_MAT_ELEMENT_AT(out, 0, 0),
-               LAMP_MAT_ELEMENT_AT(target, it, 0));
+        size_t hidden[] = {NUM_HIDDEN_NODES};
+        LampNN *nn = lamp_nn_alloc_with(NUM_INPUT_NODES, 1, hidden, NUM_OUTPUT_NODES);
+        lamp_nn_set_activation(nn, &activation_configs[i]);
 
-        lamp_mat_free(sample);
+        for (int e = 0; e < 10 * 1000; ++e) {
+            lamp_nn_backprop(nn, input, target, 1.0f);
+            LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
+            // printf("Loss %f\n", loss);
+        }
+
+        const char *activation_names[] = {
+            "LAMP_ACTIVATION_SIGMOID",
+            "LAMP_ACTIVATION_RELU",
+            "LAMP_ACTIVATION_TANH",
+        };
+
+        printf("Result with %s\n", activation_names[i]);
+
+        for (int it = 0; it < input->num_rows; ++it) {
+
+            float sample_data[] = {
+                LAMP_MAT_ELEMENT_AT(input, it, 0),
+                LAMP_MAT_ELEMENT_AT(input, it, 1)
+            };
+            LampMatrix *sample = lamp_mat_alloc_from_array(NUM_INPUT_NODES, 1, sample_data);
+
+            lamp_nn_forward_single(nn, sample);
+            const LampMatrix *out = lamp_nn_get_output(nn);
+
+            printf("[%f, %f] -> [%f]    (target: %f)\n",
+                   LAMP_MAT_ELEMENT_AT(input, it, 0),
+                   LAMP_MAT_ELEMENT_AT(input, it, 1),
+                   LAMP_MAT_ELEMENT_AT(out, 0, 0),
+                   LAMP_MAT_ELEMENT_AT(target, it, 0));
+
+            lamp_mat_free(sample);
+        }
+
+        lamp_nn_free(nn);
     }
-
-    lamp_nn_free(nn);
 
     return 0;
 }
