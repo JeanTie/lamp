@@ -51,6 +51,7 @@ typedef struct {
     LAMP_FLOAT_TYPE (*activate)(LAMP_FLOAT_TYPE x);
     LAMP_FLOAT_TYPE (*derivative)(LAMP_FLOAT_TYPE x);
     const char *name;
+    float learning_rate;
 } LampNNActivationConfig;
 
 typedef struct {

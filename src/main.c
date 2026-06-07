@@ -45,10 +45,11 @@ int main() {
 
         size_t hidden[] = {NUM_HIDDEN_NODES};
         LampNN *nn = lamp_nn_alloc_with(NUM_INPUT_NODES, 1, hidden, NUM_OUTPUT_NODES);
-        lamp_nn_set_activation(nn, &activation_configs[i]);
+        const LampNNActivationConfig *act_config = &activation_configs[i];
+        lamp_nn_set_activation(nn, act_config);
 
         for (int e = 0; e < 10 * 1000; ++e) {
-            lamp_nn_backprop(nn, input, target, 1.0f);
+            lamp_nn_backprop(nn, input, target, act_config->learning_rate);
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
             // printf("Loss %f\n", loss);
         }
