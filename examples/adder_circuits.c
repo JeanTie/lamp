@@ -57,21 +57,14 @@ int main() {
 
     size_t half_add_hidden[] = {HALF_ADD_HIDDEN};
     LampNN *nn = lamp_nn_alloc_with(HALF_ADD_INPUTS, 1, half_add_hidden, HALF_ADD_OUT);
-    for (int i = 0; i < nn->connection_count; ++i) {
-        lamp_mat_rand(nn->connections[i].weights);
-        lamp_mat_rand(nn->connections[i].bias);
-        lamp_mat_fill_with(nn->connections[i].layer_begin->activations, 0.0f);
-        lamp_mat_fill_with(nn->connections[i].layer_end->activations, 0.0f);
-    }
 
     LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 2, targs_ha);
 
-
-    for (int e = 0; e < 10 * 1000; ++e) {
-        lamp_nn_backprop(nn, input, target, 1.0f);
-        LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-        //        printf("Loss %f\n", loss);
-    }
+    LampNNTrainingConfig config = lamp_nn_configure_training(1.0f, 1.0f, LAMP_TRAIN_BACKPROP);
+    config.max_epochs = 10 * 1000;
+    config.target_loss = 0.01f;
+    LAMP_FLOAT_TYPE final_loss = lamp_nn_train(nn, &config, input, target);
+    printf("Half-adder final loss: %f\n", final_loss);
 
     for (int it = 0; it < input->num_rows; ++it) {
         float sample_data[] = {
@@ -127,22 +120,14 @@ int main() {
 
     size_t fa_hidden[] = {8, 3};
     nn = lamp_nn_alloc_with(3, 2, fa_hidden, 2);
-    for (int i = 0; i < nn->connection_count; ++i) {
-        lamp_mat_rand(nn->connections[i].weights);
-        lamp_mat_rand(nn->connections[i].bias);
-        lamp_mat_fill_with(nn->connections[i].layer_begin->activations, 0.0f);
-        lamp_mat_fill_with(nn->connections[i].layer_end->activations, 0.0f);
-    }
 
     target = lamp_mat_alloc_from_array(input->num_rows, 2, targs_fa);
 
-    for (int e = 0; e < 100 * 1000; ++e) {
-        lamp_nn_backprop(nn, input, target, 1.0f);
-        if ((e % 10000) == 0) {
-            LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-            printf("Loss %f\n", loss);
-        }
-    }
+    LampNNTrainingConfig config_fa = lamp_nn_configure_training(1.0f, 1.0f, LAMP_TRAIN_BACKPROP);
+    config_fa.max_epochs = 100 * 1000;
+    config_fa.target_loss = 0.005f;
+    final_loss = lamp_nn_train(nn, &config_fa, input, target);
+    printf("Full-adder final loss: %f\n", final_loss);
 
     for (int it = 0; it < input->num_rows; ++it) {
         float sample_data[] = {

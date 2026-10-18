@@ -82,16 +82,18 @@ int main() {
 
     for (int i = 0; i < NUMBER_OF_GATES; ++i) {
         LampMatrix *target = lamp_mat_alloc_from_array(input->num_rows, 1, targs[i]);
+
+        // Re-initialize weights for each gate
         for (int j = 0; j < nn->connection_count; ++j) {
             lamp_mat_rand(nn->connections[j].weights);
             lamp_mat_rand(nn->connections[j].bias);
         }
 
-        for (int e = 0; e < 10 * 1000; ++e) {
-            lamp_nn_backprop(nn, input, target, LEARNING_RATE);
-            LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
-            // printf("Loss %f\n", loss);
-        }
+        LampNNTrainingConfig config = lamp_nn_configure_training(LEARNING_RATE, 1.0f, LAMP_TRAIN_BACKPROP);
+        config.max_epochs = 10 * 1000;
+        config.target_loss = 0.005f;
+        LAMP_FLOAT_TYPE final_loss = lamp_nn_train(nn, &config, input, target);
+        printf("Final loss: %f\n", final_loss);
 
         printf("%s:\n", gate_descriptions[i]);
         for (int it = 0; it < input->num_rows; ++it) {
