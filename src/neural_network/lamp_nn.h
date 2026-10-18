@@ -54,6 +54,20 @@ typedef struct {
     float learning_rate;
 } LampNNActivationConfig;
 
+typedef enum {
+    LAMP_TRAIN_BACKPROP,
+    LAMP_TRAIN_FINITE_DIFF
+} LampNNTrainingAlgorithm;
+
+typedef struct {
+    LAMP_FLOAT_TYPE learning_rate;
+    LAMP_FLOAT_TYPE lr_decay;          // multiplier applied per epoch (1.0 = none)
+    LampNNTrainingAlgorithm algorithm;
+    LAMP_FLOAT_TYPE finite_diff_step;  // used if algorithm == FINITE_DIFF
+    size_t max_epochs;                 // 0 = unlimited
+    LAMP_FLOAT_TYPE target_loss;       // 0.0 = run to max_epochs
+} LampNNTrainingConfig;
+
 typedef struct {
     LampNNLayer *layers;
     size_t layer_count;
@@ -97,6 +111,21 @@ void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, co
 
 void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix* target, LAMP_FLOAT_TYPE learning_rate);
 
+void lamp_nn_training_config_init(LampNNTrainingConfig *config);
+
+LampNNTrainingConfig lamp_nn_configure_training(LAMP_FLOAT_TYPE learning_rate,
+                                                LAMP_FLOAT_TYPE lr_decay,
+                                                LampNNTrainingAlgorithm algorithm);
+
+LAMP_FLOAT_TYPE lamp_nn_train(LampNN *nn, const LampNNTrainingConfig *config,
+                              const LampMatrix *input, const LampMatrix *target);
+
+LAMP_FLOAT_TYPE lamp_nn_train_sample(LampNN *nn, const LampMatrix *sample_row,
+                                      const LampMatrix *target_row, LAMP_FLOAT_TYPE learning_rate_override);
+
 void lamp_nn_print(const LampNN *nn);
+
+// Print architecture information.
+void lamp_nn_print_architecture(const LampNN *nn);
 
 #endif //LAMP_LAMP_NN_H

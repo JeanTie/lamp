@@ -395,3 +395,114 @@ void lamp_nn_print(const LampNN *nn) {
     }
     printf("\n");
 }
+
+void lamp_nn_print_architecture(const LampNN *nn) {
+    assert(nn != NULL && nn->layer_count > 0);
+
+    printf("\n=== Neural Network Architecture ===\n");
+    printf("Layers: %zu\n", nn->layer_count);
+    printf("Connections: %zu\n\n", nn->connection_count);
+
+    for (size_t i = 0; i < nn->layer_count; ++i) {
+        printf("  Layer %zu: %zu neurons\n", i + 1, nn->layers[i].activations->num_rows);
+    }
+    printf("\n");
+
+    for (size_t i = 0; i < nn->connection_count; ++i) {
+        LampNNConnection *con = &nn->connections[i];
+        printf("  Connection %zu: Layer %zu -> Layer %zu (%zu input neurons, %zu output neurons)\n",
+               i + 1, i + 1, i + 2,
+               con->layer_begin->activations->num_rows,
+               con->layer_end->activations->num_rows);
+    }
+    printf("\n");
+}
+
+void lamp_nn_training_config_init(LampNNTrainingConfig *config) {
+    assert(config != NULL);
+    config->learning_rate = 0.3f;
+    config->lr_decay = 1.0f;
+    config->algorithm = LAMP_TRAIN_BACKPROP;
+    config->finite_diff_step = 1e-4f;
+    config->max_epochs = 0;  // unlimited
+    config->target_loss = 0.0f;
+}
+
+LampNNTrainingConfig lamp_nn_configure_training(LAMP_FLOAT_TYPE learning_rate,
+                                               LAMP_FLOAT_TYPE lr_decay,
+                                               LampNNTrainingAlgorithm algorithm) {
+    LampNNTrainingConfig config;
+    lamp_nn_training_config_init(&config);
+    config.learning_rate = learning_rate;
+    config.lr_decay = lr_decay;
+    config.algorithm = algorithm;
+    return config;
+}
+
+LAMP_FLOAT_TYPE lamp_nn_train(LampNN *nn, const LampNNTrainingConfig *config,
+                              const LampMatrix *input, const LampMatrix *target) {
+    assert(nn != NULL && config != NULL && input != NULL && target != NULL);
+    assert(input->num_rows == target->num_rows);
+
+    size_t num_samples = input->num_rows;
+    size_t epoch = 0;
+    LAMP_FLOAT_TYPE loss = INFINITY;
+
+    while (config->max_epochs == 0 || epoch < config->max_epochs) {
+        if (loss <= config->target_loss) {
+            break;
+        }
+
+        LAMP_FLOAT_TYPE current_lr = config->learning_rate * powf(config->lr_decay, epoch);
+
+        assert(config->algorithm == LAMP_TRAIN_BACKPROP || config->algorithm == LAMP_TRAIN_FINITE_DIFF);
+
+        if (config->algorithm == LAMP_TRAIN_BACKPROP) {
+            lamp_nn_backprop(nn, input, target, current_lr);
+        } else {
+            lamp_nn_apply_finite_diff_gradients(nn, input, target,
+                                               config->finite_diff_step, current_lr);
+        }
+
+        loss = lamp_nn_loss(nn, input, target);
+
+        if ((epoch + 1) % 100 == 0) {
+            printf("  Epoch %4zu | loss: %.6f | lr: %.6f\n",
+                   epoch + 1, loss, current_lr);
+        }
+
+        if (loss <= config->target_loss) {
+            break;
+        }
+
+        epoch++;
+    }
+
+    return loss;
+}
+
+LAMP_FLOAT_TYPE lamp_nn_train_sample(LampNN *nn, const LampMatrix *sample_row,
+                                      const LampMatrix *target_row, LAMP_FLOAT_TYPE learning_rate_override) {
+    assert(nn != NULL && sample_row != NULL && target_row != NULL);
+    assert(sample_row->num_cols == nn->layers[0].activations->num_rows);
+    assert(target_row->num_cols == nn->layers[nn->layer_count - 1].activations->num_rows);
+    assert(sample_row->num_rows == 1);
+    assert(target_row->num_rows == 1);
+
+    LampMatrix *input_mat = lamp_mat_alloc(1, sample_row->num_cols);
+    LampMatrix *target_mat = lamp_mat_alloc(1, target_row->num_cols);
+
+    lamp_mat_copy_into(input_mat, sample_row);
+    lamp_mat_copy_into(target_mat, target_row);
+
+    LampNNTrainingConfig config;
+    lamp_nn_training_config_init(&config);
+    config.learning_rate = learning_rate_override;
+    config.max_epochs = 1;  // single epoch
+
+    LAMP_FLOAT_TYPE loss = lamp_nn_train(nn, &config, input_mat, target_mat);
+
+    lamp_mat_free(input_mat);
+    lamp_mat_free(target_mat);
+    return loss;
+}

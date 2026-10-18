@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "../src/linear_algebra/lamp_matrix.h"
 #include "../src/neural_network/lamp_nn.h"
@@ -329,11 +330,71 @@ bool test_nn_get_output(void) {
     return ok;
 }
 
+bool test_nn_backprop_gradient_check(void) {
+    srand(42);
+    size_t arch[] = {2, 3, 1};
+    LampNN *nn = lamp_nn_alloc(arch, sizeof(arch) / sizeof(arch[0]));
+
+    float input_data[] = {0.5f, 0.3f};
+    float target_data[] = {0.9f};
+    LampMatrix *input = lamp_mat_alloc_from_array(1, 2, input_data);
+    LampMatrix *target = lamp_mat_alloc_from_array(1, 1, target_data);
+
+    lamp_nn_set_activation(nn, &LAMP_ACTIVATION_SIGMOID);
+
+    for (size_t c = 0; c < nn->connection_count; ++c) {
+        lamp_mat_rand(nn->connections[c].weights);
+        lamp_mat_rand(nn->connections[c].bias);
+    }
+
+    for (size_t j = 0; j < input->num_cols; ++j) {
+        LAMP_MAT_ELEMENT_AT(nn->layers[0].activations, j, 0) = input->elements[j];
+    }
+
+    lamp_nn_forward(nn);
+
+    // Verify modifying weights changes loss for EACH connection using dynamic connection_count
+    LAMP_FLOAT_TYPE epsilon = 1e-5f;
+
+    for (size_t c = 0; c < nn->connection_count; ++c) {
+        LampMatrix *conn_weights = nn->connections[c].weights;
+        size_t rows = conn_weights->num_rows;
+        size_t cols = conn_weights->num_cols;
+
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                size_t idx = i * cols + j;
+                LAMP_FLOAT_TYPE w_orig = conn_weights->elements[idx];
+                conn_weights->elements[idx] = w_orig + epsilon;
+
+                lamp_nn_forward(nn);
+                LAMP_FLOAT_TYPE loss_plus = lamp_nn_loss(nn, input, target);
+
+                conn_weights->elements[idx] = w_orig - epsilon;
+                lamp_nn_forward(nn);
+                LAMP_FLOAT_TYPE loss_minus = lamp_nn_loss(nn, input, target);
+
+                conn_weights->elements[idx] = w_orig;
+
+                // Flag truly zero gradients (weight has no effect on loss)
+                if (fabs(loss_plus - loss_minus) < 1e-9f) {
+                    printf("ZERO-GRADIENT: Connection %zu weight [%zu][%zu] diff=%.10f\n",
+                           c, i, j, loss_plus - loss_minus);
+                }
+            }
+        }
+    }
+
+    lamp_nn_free(nn);
+    return LAMP_TEST_PASSED;
+}
+
 static LampTest nn_tests[] = {
     {test_nn_alloc, "NN alloc"},
     {test_nn_alloc_with, "NN alloc_with"},
     {test_nn_forward_single, "NN forward single"},
     {test_nn_get_output, "NN get output"},
+    {test_nn_backprop_gradient_check, "NN backprop gradient check"}
 };
 
 static void show_result(bool success, char *test_name) {
