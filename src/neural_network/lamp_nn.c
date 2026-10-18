@@ -271,8 +271,8 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
     size_t num_samples = input->num_rows;
 
     // Allocate gradient accumulators (zeroed)
-    LampMatrix *grad_w[nn->connection_count];
-    LampMatrix *grad_b[nn->connection_count];
+    LampMatrix **grad_w = calloc(nn->connection_count, sizeof(LampMatrix *));
+    LampMatrix **grad_b = calloc(nn->connection_count, sizeof(LampMatrix *));
     for (size_t c = 0; c < nn->connection_count; ++c) {
         grad_w[c] = lamp_mat_alloc(nn->connections[c].weights->num_rows,
                                    nn->connections[c].weights->num_cols);
@@ -293,7 +293,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
         lamp_nn_forward(nn);
 
         // Recompute pre-activations (Z = W * A_prev + B)
-        LampMatrix *pre_activations[nn->layer_count];
+        LampMatrix **pre_activations = calloc(nn->layer_count, sizeof(LampMatrix *));
         for (size_t i = 0; i < nn->layer_count; ++i) {
             pre_activations[i] = lamp_mat_alloc(
                 nn->layers[i].activations->num_rows,
@@ -308,7 +308,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
         }
 
         // Compute deltas
-        LampMatrix *delta[nn->layer_count];
+        LampMatrix **delta = calloc(nn->layer_count, sizeof(LampMatrix *));
         for (size_t i = 0; i < nn->layer_count; ++i) {
             delta[i] = lamp_mat_alloc(
                 nn->layers[i].activations->num_rows,
@@ -359,6 +359,8 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
             lamp_mat_free(pre_activations[i]);
             lamp_mat_free(delta[i]);
         }
+        free(pre_activations);
+        free(delta);
     }
 
     // Apply averaged gradients
@@ -375,6 +377,8 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
         lamp_mat_free(grad_w[c]);
         lamp_mat_free(grad_b[c]);
     }
+    free(grad_w);
+    free(grad_b);
 }
 
 void lamp_nn_print(const LampNN *nn) {
