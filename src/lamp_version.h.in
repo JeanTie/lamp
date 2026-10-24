@@ -1,0 +1,23 @@
+#ifndef LAMP_LAMP_VERSION_H
+#define LAMP_LAMP_VERSION_H
+
+/**
+ * LAMP — Semantic version information.
+ *
+ * Generated from CMake. Do not edit manually.
+ *
+ * SemVer 2.0.0: https://semver.org/
+ *
+ * - MAJOR version for incompatible API changes
+ * - MINOR version for backward-compatible functionality
+ * - PATCH version for backward-compatible bug fixes
+ *
+ * Version 0.x indicates initial development — the public API is not yet stable.
+ */
+
+#define LAMP_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define LAMP_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define LAMP_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define LAMP_VERSION_STRING "@PROJECT_VERSION@"
+
+#endif /* LAMP_LAMP_VERSION_H */
