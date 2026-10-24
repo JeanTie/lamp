@@ -50,7 +50,7 @@ int main() {
         lamp_nn_set_activation(nn, act_config);
 
         for (int e = 0; e < 10 * 1000; ++e) {
-            lamp_nn_backprop(nn, input, target, act_config->learning_rate);
+            lamp_nn_backprop(nn, input, target, act_config->learning_rate, NULL);
             LAMP_FLOAT_TYPE loss = lamp_nn_loss(nn, input, target);
             // printf("Loss %f\n", loss);
         }

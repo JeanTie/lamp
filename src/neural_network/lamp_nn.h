@@ -32,6 +32,7 @@
 // between 0 (not activated) and 1 (fully activated).
 typedef struct {
     LampMatrix *activations;
+    LampMatrix *pre_activations;  // Z = W*A_prev + B (cached from forward pass)
 } LampNNLayer;
 
 // A connection in this context describes the - well - connection between two layers.
@@ -109,7 +110,8 @@ LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatr
 void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, const LampMatrix *target,
                                          LAMP_FLOAT_TYPE finite_diff_step, LAMP_FLOAT_TYPE learning_rate);
 
-void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix* target, LAMP_FLOAT_TYPE learning_rate);
+void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix* target,
+                      LAMP_FLOAT_TYPE learning_rate, LAMP_FLOAT_TYPE *out_loss);
 
 void lamp_nn_training_config_init(LampNNTrainingConfig *config);
 

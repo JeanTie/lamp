@@ -42,6 +42,7 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
 
     for (size_t i = 0; i < nn->layer_count; i++) {
         nn->layers[i].activations = lamp_mat_alloc(architecture[i], 1);
+        nn->layers[i].pre_activations = lamp_mat_alloc(architecture[i], 1);
     }
 
     for (size_t j = 0; j < nn->connection_count; ++j) {
@@ -97,6 +98,7 @@ void lamp_nn_free(LampNN *nn) {
 
     for (size_t j = 0; j < nn->layer_count; ++j) {
         lamp_mat_free(nn->layers[j].activations);
+        lamp_mat_free(nn->layers[j].pre_activations);
     }
 
     free(nn->connections);
@@ -170,7 +172,9 @@ void lamp_nn_forward(LampNN *nn) {
         LampNNConnection *conn = &nn->connections[i];
         lamp_mat_multiply_into(conn->layer_end->activations, conn->weights,
                                conn->layer_begin->activations);
-        lamp_mat_add(conn->layer_end->activations, conn->bias);
+        // Cache pre-activation Z = W*A_prev + B before applying activation
+        lamp_mat_copy_into(conn->layer_end->pre_activations, conn->layer_end->activations);
+
         for (size_t j = 0; j < conn->layer_end->activations->num_rows; ++j) {
             for (size_t k = 0; k < conn->layer_end->activations->num_cols; ++k) {
                 LAMP_MAT_ELEMENT_AT(conn->layer_end->activations, j, k) = nn->config->activate(
@@ -228,6 +232,24 @@ LAMP_FLOAT_TYPE lamp_nn_loss(LampNN *nn, const LampMatrix *input, const LampMatr
     return loss / (LAMP_FLOAT_TYPE) input->num_rows;
 }
 
+// Compute MSE loss using cached activations from the last forward pass.
+// The last sample processed was at index (num_samples - 1) in the target matrix.
+static LAMP_FLOAT_TYPE lamp_nn_loss_from_cache(const LampNN *nn, const LampMatrix *target, size_t num_samples) {
+    assert(nn != NULL && target != NULL);
+    assert(num_samples > 0);
+
+    LAMP_FLOAT_TYPE loss = 0.0f;
+    LampMatrix *output = nn->layers[nn->layer_count - 1].activations;
+
+    for (size_t j = 0; j < target->num_cols; ++j) {
+        LAMP_FLOAT_TYPE diff =
+            LAMP_MAT_ELEMENT_AT(output, j, 0) -
+            LAMP_MAT_ELEMENT_AT(target, num_samples - 1, j);
+        loss += diff * diff;
+    }
+    return loss;
+}
+
 void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, const LampMatrix *target,
                                          LAMP_FLOAT_TYPE finite_diff_step, LAMP_FLOAT_TYPE learning_rate) {
     assert(nn != NULL && input != NULL && target != NULL);
@@ -264,7 +286,7 @@ void lamp_nn_apply_finite_diff_gradients(LampNN *nn, const LampMatrix *input, co
 }
 
 void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *target,
-                      LAMP_FLOAT_TYPE learning_rate) {
+                      LAMP_FLOAT_TYPE learning_rate, LAMP_FLOAT_TYPE *out_loss) {
     assert(nn != NULL && input != NULL && target != NULL);
     assert(input->num_rows == target->num_rows);
 
@@ -283,6 +305,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
     }
 
     // Process each training sample
+    LAMP_FLOAT_TYPE total_loss = 0.0f;
     for (size_t s = 0; s < num_samples; ++s) {
         // Set input for this sample (row of input matrix → column vector)
         for (size_t j = 0; j < input->num_cols; ++j) {
@@ -292,19 +315,20 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
 
         lamp_nn_forward(nn);
 
-        // Recompute pre-activations (Z = W * A_prev + B)
-        LampMatrix **pre_activations = calloc(nn->layer_count, sizeof(LampMatrix *));
-        for (size_t i = 0; i < nn->layer_count; ++i) {
-            pre_activations[i] = lamp_mat_alloc(
-                nn->layers[i].activations->num_rows,
-                nn->layers[i].activations->num_cols);
-            lamp_mat_fill_with(pre_activations[i], 0.0f);
-        }
-        for (size_t c = 0; c < nn->connection_count; ++c) {
-            LampNNConnection *conn = &nn->connections[c];
-            lamp_mat_multiply_into(pre_activations[c + 1], conn->weights,
-                                   conn->layer_begin->activations);
-            lamp_mat_add(pre_activations[c + 1], conn->bias);
+        // Pre-activations are cached in forward pass — no redundant matmul needed.
+        // Delta computation reads from nn->layers[].pre_activations below.
+
+        // Accumulate loss for this sample (before activation)
+        if (out_loss != NULL) {
+            LAMP_FLOAT_TYPE sample_loss = 0.0f;
+            LampMatrix *output = nn->layers[nn->layer_count - 1].activations;
+            for (size_t j = 0; j < target->num_cols; ++j) {
+                LAMP_FLOAT_TYPE diff =
+                    LAMP_MAT_ELEMENT_AT(output, j, 0) -
+                    LAMP_MAT_ELEMENT_AT(target, s, j);
+                sample_loss += diff * diff;
+            }
+            total_loss += sample_loss;
         }
 
         // Compute deltas
@@ -321,7 +345,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
         LampMatrix *output = nn->layers[out_idx].activations;
         for (size_t i = 0; i < output->num_rows; ++i) {
             LAMP_FLOAT_TYPE act = LAMP_MAT_ELEMENT_AT(output, i, 0);
-            LAMP_FLOAT_TYPE pre_act = LAMP_MAT_ELEMENT_AT(pre_activations[out_idx], i, 0);
+            LAMP_FLOAT_TYPE pre_act = LAMP_MAT_ELEMENT_AT(nn->layers[out_idx].pre_activations, i, 0);
             LAMP_FLOAT_TYPE tgt = LAMP_MAT_ELEMENT_AT(target, s, i); // sample s, output i
             LAMP_MAT_ELEMENT_AT(delta[out_idx], i, 0) = (act - tgt) * nn->config->derivative(pre_act);
         }
@@ -332,7 +356,7 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
                 LampMatrix *w_trans = lamp_mat_alloc_transpose(nn->connections[c].weights);
                 LampMatrix *delta_in = lamp_mat_alloc_multiply(w_trans, delta[c + 1]);
                 for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(delta_in); ++e) {
-                    delta_in->elements[e] *= nn->config->derivative(pre_activations[c]->elements[e]);
+                    delta_in->elements[e] *= nn->config->derivative(nn->layers[c].pre_activations->elements[e]);
                 }
                 lamp_mat_copy_into(delta[c], delta_in);
                 lamp_mat_free(w_trans);
@@ -356,11 +380,14 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
         }
 
         for (size_t i = 0; i < nn->layer_count; ++i) {
-            lamp_mat_free(pre_activations[i]);
             lamp_mat_free(delta[i]);
         }
-        free(pre_activations);
         free(delta);
+    }
+
+    // Return average loss (mean squared error per sample)
+    if (out_loss != NULL) {
+        *out_loss = total_loss / (LAMP_FLOAT_TYPE) num_samples;
     }
 
     // Apply averaged gradients
@@ -451,26 +478,25 @@ LAMP_FLOAT_TYPE lamp_nn_train(LampNN *nn, const LampNNTrainingConfig *config,
     size_t num_samples = input->num_rows;
     size_t epoch = 0;
     LAMP_FLOAT_TYPE loss = INFINITY;
+    LAMP_FLOAT_TYPE current_lr = config->learning_rate;
 
     while (config->max_epochs == 0 || epoch < config->max_epochs) {
         if (loss <= config->target_loss) {
             break;
         }
 
-        LAMP_FLOAT_TYPE current_lr = config->learning_rate * powf(config->lr_decay, epoch);
-
         assert(config->algorithm == LAMP_TRAIN_BACKPROP || config->algorithm == LAMP_TRAIN_FINITE_DIFF);
 
         if (config->algorithm == LAMP_TRAIN_BACKPROP) {
-            lamp_nn_backprop(nn, input, target, current_lr);
+            // Accumulate loss across all samples during backprop's forward passes
+            lamp_nn_backprop(nn, input, target, current_lr, &loss);
         } else {
             lamp_nn_apply_finite_diff_gradients(nn, input, target,
                                                config->finite_diff_step, current_lr);
+            loss = lamp_nn_loss(nn, input, target);
         }
 
-        loss = lamp_nn_loss(nn, input, target);
-
-        if ((epoch + 1) % 100 == 0) {
+        if ((epoch + 1) % 10000 == 0) {
             printf("  Epoch %4zu | loss: %.6f | lr: %.6f\n",
                    epoch + 1, loss, current_lr);
         }
@@ -479,6 +505,7 @@ LAMP_FLOAT_TYPE lamp_nn_train(LampNN *nn, const LampNNTrainingConfig *config,
             break;
         }
 
+        current_lr *= config->lr_decay;
         epoch++;
     }
 

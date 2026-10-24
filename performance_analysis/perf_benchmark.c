@@ -266,12 +266,12 @@ void benchmark_backprop(void) {
         lamp_mat_rand(target);
 
         // Warmup
-        lamp_nn_backprop(nn, input, target, 0.01);
+        lamp_nn_backprop(nn, input, target, 0.01, NULL);
 
         int reps = 100;
         double start = benchmark_now();
         for (int r = 0; r < reps; r++) {
-            lamp_nn_backprop(nn, input, target, 0.01);
+            lamp_nn_backprop(nn, input, target, 0.01, NULL);
         }
         double elapsed = benchmark_now() - start;
 
@@ -325,7 +325,7 @@ void benchmark_caching_comparison(void) {
     start = benchmark_now();
     // Forward + backprop
     for (int r = 0; r < reps; r++) {
-        lamp_nn_backprop(nn, input, target, 0.01);
+        lamp_nn_backprop(nn, input, target, 0.01, NULL);
     }
     double fwd_bprop_time = benchmark_now() - start;
 
