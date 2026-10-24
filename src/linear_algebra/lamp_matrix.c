@@ -57,6 +57,11 @@ void lamp_mat_free(LampMatrix *mat) {
 void lamp_mat_fill_with(LampMatrix *mat, LAMP_FLOAT_TYPE filler) {
     assert(mat != NULL);
 
+    if (filler == 0.0f && LAMP_MAT_NUM_ELEMENTS(mat) > 0) {
+        memset(mat->elements, 0, LAMP_MAT_NUM_ELEMENTS(mat) * sizeof(LAMP_FLOAT_TYPE));
+        return;
+    }
+
     for (size_t i = 0; i < LAMP_MAT_NUM_ELEMENTS(mat); ++i) {
         mat->elements[i] = filler;
     }
