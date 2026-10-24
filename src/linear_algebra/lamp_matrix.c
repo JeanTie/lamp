@@ -28,10 +28,9 @@
 #include <string.h>
 #include "lamp_matrix.h"
 
-// Get a pseudo random floating point value between 0.0 and 1.0 inclusive
+// Get a pseudo random value centered around zero (-0.5f..0.5f)
 static LAMP_FLOAT_TYPE rand_f_normalized(void) {
-    return (LAMP_FLOAT_TYPE) rand() / // NOLINT(cert-msc30-c, cert-msc50-cpp) suppress warning about limited randomness
-           (LAMP_FLOAT_TYPE) RAND_MAX;
+    return ((LAMP_FLOAT_TYPE)rand() / (LAMP_FLOAT_TYPE)RAND_MAX - 0.5f);
 }
 
 LampMatrix *lamp_mat_alloc(size_t rows, size_t cols) {
