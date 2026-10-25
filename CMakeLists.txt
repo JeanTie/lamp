@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(lamp VERSION 0.1.2 LANGUAGES C)
+project(lamp VERSION 0.1.3 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 
