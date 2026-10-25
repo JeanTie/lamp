@@ -28,6 +28,8 @@
 #include <string.h>
 #include "lamp_matrix.h"
 
+#define LAMP_MAT_BLOCK_SIZE 16
+
 // Get a pseudo random value centered around zero (-0.5f..0.5f)
 static LAMP_FLOAT_TYPE rand_f_normalized(void) {
     return ((LAMP_FLOAT_TYPE)rand() / (LAMP_FLOAT_TYPE)RAND_MAX - 0.5f);
@@ -140,9 +142,43 @@ LampMatrix *lamp_mat_alloc_copy(const LampMatrix *m_to_copy) {
     return mc;
 }
 
+static void lamp_mat_multiply_blocked_into(LampMatrix *dst, const LampMatrix *m1, const LampMatrix *m2) {
+    const size_t m1_rows = m1->num_rows;
+    const size_t m1_cols = m1->num_cols;
+    const size_t m2_cols = m2->num_cols;
+    const size_t bs = LAMP_MAT_BLOCK_SIZE;
+
+    lamp_mat_fill_with(dst, 0.0f);
+
+    for (size_t ib = 0; ib < m1_rows; ib += bs) {
+        size_t ie = ib + bs;
+        if (ie > m1_rows) ie = m1_rows;
+        for (size_t jb = 0; jb < m2_cols; jb += bs) {
+            size_t je = jb + bs;
+            if (je > m2_cols) je = m2_cols;
+            for (size_t i = ib; i < ie; ++i) {
+                const LAMP_FLOAT_TYPE *m1_row = m1->elements + i * m1_cols;
+                LAMP_FLOAT_TYPE *dst_row = dst->elements + i * m2_cols;
+                for (size_t k = 0; k < m1_cols; ++k) {
+                    const LAMP_FLOAT_TYPE *m2_row = m2->elements + k * m2_cols;
+                    LAMP_FLOAT_TYPE m1_ik = m1_row[k];
+                    for (size_t j = jb; j < je; ++j) {
+                        dst_row[j] += m1_ik * m2_row[j];
+                    }
+                }
+            }
+        }
+    }
+}
+
 void lamp_mat_multiply_into(LampMatrix *dst, const LampMatrix *m1, const LampMatrix *m2) {
     assert(m1->num_cols == m2->num_rows);
     assert((dst->num_rows == m1->num_rows) && (dst->num_cols == m2->num_cols));
+
+    if (dst->num_rows >= 128 && dst->num_cols >= 128) {
+        lamp_mat_multiply_blocked_into(dst, m1, m2);
+        return;
+    }
 
     lamp_mat_fill_with(dst, 0.0f);
 

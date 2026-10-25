@@ -1,0 +1,45 @@
+Lamp Framework Performance Benchmark 0.1.4
+=====================================
+
+=== Matrix Multiplication Benchmark ===
+      Size (N)       GFLOP/s     Time (ms)          Reps
+  ----------------------------------------------------------------------
+            16         1.077          0.01       10000
+            32         1.180          0.06       10000
+            64         1.177          0.45        1000
+           128         1.120          3.74         100
+           256         1.050         31.96          10
+
+=== Forward Pass Benchmark ===
+  (measures a single forward pass through a network)
+
+  Logic gate (tiny)              [2,8,1]  4529051 fwd/s
+  Small MLP                      [64,128,10]  28972 fwd/s
+  Medium MLP (MNIST-ish)         [784,256,10]  1455 fwd/s
+
+=== Backpropagation Benchmark ===
+  (measures one backprop step)
+
+  Small MLP            [64,128,10] batch=4  2140.0 iter/s  (0.5 ms/iter)
+  Medium MLP (MNIST-ish) [784,256,10] batch=4  111.3 iter/s  (9.0 ms/iter)
+
+=== Caching Test: Forward Pass Reuse ===
+  (compares forward-only vs forward+backprop)
+
+  Allocating network [64,64,10]...
+  Setting activation...
+  Allocating matrices (batch=16, in=64)...
+  Forward only:     0.017 ms/iter
+  Forward+Backprop: 0.832 ms/iter
+  Backprop only:    0.815 ms/iter (forward cost subtracted)
+  Ratio (fwd:bp):   0.0:1
+
+=== Measured Results ===
+Matrix multiply: 1.121 GFLOP/s (average across 5 sizes, 16-256)
+Forward pass Logic gate (tiny)              [2,8,1]  0.000 ms per sample (4529051 fwd/s)
+Forward pass Small MLP                      [64,128,10]  0.035 ms per sample (28972 fwd/s)
+Forward pass Medium MLP (MNIST-ish)         [784,256,10]  0.687 ms per sample (1455 fwd/s)
+Backprop Small MLP                      [64,128,10] batch=4  0.5 ms/iter (2140 iter/s)
+Backprop Medium MLP (MNIST-ish)         [784,256,10] batch=4  9.0 ms/iter (111 iter/s)
+Caching comparison [64,64,10] batch=16:  fwd=0.017 ms, bp=0.815 ms, ratio 0.0:1
+Benchmark settings: single-threaded, no optimizations
