@@ -146,14 +146,17 @@ void lamp_mat_multiply_into(LampMatrix *dst, const LampMatrix *m1, const LampMat
 
     lamp_mat_fill_with(dst, 0.0f);
 
-    // It is probably also not very efficient and the easiest to read, but at least for me, it is clear
-    // how the matrix multiplication is executed.
+    const size_t m1_cols = m1->num_cols;
+    const size_t m2_cols = m2->num_cols;
+
     for (size_t i = 0; i < dst->num_rows; ++i) {
-        for (size_t j = 0; j < dst->num_cols; ++j) {
-            for (size_t k = 0; k < m1->num_cols; ++k) {
-                LAMP_FLOAT_TYPE elem1 = LAMP_MAT_ELEMENT_AT(m1, i, k);
-                LAMP_FLOAT_TYPE elem2 = LAMP_MAT_ELEMENT_AT(m2, k, j);
-                dst->elements[LAMP_MAT_ELEMENT_IDX(dst, i, j)] += elem1 * elem2;
+        const LAMP_FLOAT_TYPE *m1_row = m1->elements + i * m1_cols;
+        LAMP_FLOAT_TYPE *dst_row = dst->elements + i * dst->num_cols;
+        for (size_t k = 0; k < m1_cols; ++k) {
+            const LAMP_FLOAT_TYPE *m2_row = m2->elements + k * m2_cols;
+            LAMP_FLOAT_TYPE m1_ik = m1_row[k];
+            for (size_t j = 0; j < m2_cols; ++j) {
+                dst_row[j] += m1_ik * m2_row[j];
             }
         }
     }
