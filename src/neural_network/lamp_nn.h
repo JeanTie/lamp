@@ -43,6 +43,9 @@ typedef struct {
     LampNNLayer *layer_end;
     LampMatrix *weights;
     LampMatrix *bias;
+    LampMatrix *grad_w;
+    LampMatrix *grad_b;
+    LampMatrix *weight_trans;
 } LampNNConnection;
 
 // The neural network combining layers and connections in one convenient structure.
@@ -69,6 +72,13 @@ typedef struct {
     LAMP_FLOAT_TYPE target_loss;       // 0.0 = run to max_epochs
 } LampNNTrainingConfig;
 
+// Bump allocator — embedded in LampNN, owned and freed by it.
+typedef struct {
+    void *ptr;
+    size_t capacity;
+    size_t offset;
+} LampArena;
+
 typedef struct {
     LampNNLayer *layers;
     size_t layer_count;
@@ -77,6 +87,8 @@ typedef struct {
 
     /* Activation function config — applied to every layer */
     const LampNNActivationConfig *config;
+
+    LampArena arena;
 } LampNN;
 
 /* Predefined activation function configs — use with lamp_nn_set_activation */

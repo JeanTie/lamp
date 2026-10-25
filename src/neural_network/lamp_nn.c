@@ -27,6 +27,10 @@
 #include <stdlib.h>
 #include "lamp_nn.h"
 
+#define LAMP_ARENA_ALIGNMENT 8 // sufficient for void*, size_t, float on 64-bit
+
+static size_t nn_arena_capacity(const LampNN *nn);
+
 LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
     assert(architecture != NULL);
     assert(layer_count >= 2); // Require at least 1 input and 1 output layer
@@ -54,10 +58,26 @@ LampNN *lamp_nn_alloc(const size_t architecture[], size_t layer_count) {
         conn->bias = lamp_mat_alloc(nn->layers[j + 1].activations->num_rows, 1);
         lamp_mat_rand(conn->weights);
         lamp_mat_rand(conn->bias);
+
+        // Pre-allocate gradient accumulators (zero-filled)
+        conn->grad_w = lamp_mat_alloc(conn->weights->num_rows, conn->weights->num_cols);
+        lamp_mat_fill_with(conn->grad_w, 0.0f);
+        conn->grad_b = lamp_mat_alloc(conn->bias->num_rows, conn->bias->num_cols);
+        lamp_mat_fill_with(conn->grad_b, 0.0f);
+
+        // Cache weight transpose for backprop
+        conn->weight_trans = lamp_mat_alloc_transpose(conn->weights);
     }
 
     /* Default to sigmoid activation */
     nn->config = &LAMP_ACTIVATION_SIGMOID;
+
+    // Arena for per-sample temporaries
+    size_t arena_cap = nn_arena_capacity(nn);
+    nn->arena.ptr = malloc(arena_cap);
+    assert(nn->arena.ptr != NULL);
+    nn->arena.capacity = arena_cap;
+    nn->arena.offset = 0;
 
     return nn;
 }
@@ -88,13 +108,89 @@ LampNN *lamp_nn_alloc_with(size_t input_nodes, size_t hidden_layers, const size_
     return nn;
 }
 
+static void *nn_arena_alloc_aligned(LampArena *arena, size_t size, size_t alignment) {
+    assert(arena != NULL);
+    assert(size > 0 && alignment > 0);
+
+    size_t misaligned = arena->offset % alignment;
+    if (misaligned) {
+        arena->offset += alignment - misaligned;
+    }
+
+    if (arena->offset + size > arena->capacity) {
+        assert(0 && "Arena overflow - increase initial capacity");
+        return NULL;
+    }
+
+    void *p = (char *)arena->ptr + arena->offset;
+    arena->offset += size;
+    return p;
+}
+
+static void *nn_arena_alloc(LampArena *arena, size_t size) {
+    return nn_arena_alloc_aligned(arena, size, LAMP_ARENA_ALIGNMENT);
+}
+
+static void nn_arena_reset(LampArena *arena) {
+    arena->offset = 0;
+}
+
+static void nn_arena_free(LampArena *arena) {
+    free(arena->ptr);
+    arena->ptr = NULL;
+    arena->capacity = 0;
+    arena->offset = 0;
+}
+
+// Compute arena capacity from the network architecture.
+// All per-sample buffers are counted, per-batch buffers (grad_w/grad_b) are pre-allocated as fields and not included.
+static size_t nn_arena_capacity(const LampNN *nn) {
+    size_t cap = 0;
+
+    cap += nn->layer_count * sizeof(LampMatrix *);
+    for (size_t i = 0; i < nn->layer_count; ++i) {
+        cap += sizeof(LampMatrix);
+        cap += nn->layers[i].activations->num_rows * sizeof(LAMP_FLOAT_TYPE);
+    }
+
+    for (size_t c = 0; c < nn->connection_count; ++c) {
+        LampMatrix *w = nn->connections[c].weights;
+        LampMatrix *b = nn->connections[c].bias;
+
+        cap += sizeof(LampMatrix);
+        cap += w->num_cols * w->num_rows * sizeof(LAMP_FLOAT_TYPE);
+
+        if (c > 0) {
+            cap += sizeof(LampMatrix);
+            cap += nn->layers[c].activations->num_rows * sizeof(LAMP_FLOAT_TYPE);
+        }
+
+        cap += sizeof(LampMatrix);
+        cap += nn->connections[c].layer_begin->activations->num_rows *
+               nn->connections[c].layer_begin->activations->num_cols * sizeof(LAMP_FLOAT_TYPE);
+
+        cap += sizeof(LampMatrix);
+        cap += b->num_rows * w->num_cols * sizeof(LAMP_FLOAT_TYPE);
+
+        cap += b->num_rows * sizeof(LAMP_FLOAT_TYPE);
+    }
+
+    cap = (cap * 5) / 4; // 25% safety margin
+    return cap;
+}
+
 void lamp_nn_free(LampNN *nn) {
     assert(nn != NULL);
 
     for (size_t i = 0; i < nn->connection_count; i++) {
         lamp_mat_free(nn->connections[i].weights);
         lamp_mat_free(nn->connections[i].bias);
+        lamp_mat_free(nn->connections[i].grad_w);
+        lamp_mat_free(nn->connections[i].grad_b);
+        lamp_mat_free(nn->connections[i].weight_trans);
     }
+
+    nn_arena_free(&nn->arena);
 
     for (size_t j = 0; j < nn->layer_count; ++j) {
         lamp_mat_free(nn->layers[j].activations);
@@ -292,16 +388,10 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
 
     size_t num_samples = input->num_rows;
 
-    // Allocate gradient accumulators (zeroed)
-    LampMatrix **grad_w = calloc(nn->connection_count, sizeof(LampMatrix *));
-    LampMatrix **grad_b = calloc(nn->connection_count, sizeof(LampMatrix *));
+    // Zero pre-allocated gradient accumulators (must start fresh each backprop)
     for (size_t c = 0; c < nn->connection_count; ++c) {
-        grad_w[c] = lamp_mat_alloc(nn->connections[c].weights->num_rows,
-                                   nn->connections[c].weights->num_cols);
-        lamp_mat_fill_with(grad_w[c], 0.0f);
-        grad_b[c] = lamp_mat_alloc(nn->connections[c].bias->num_rows,
-                                   nn->connections[c].bias->num_cols);
-        lamp_mat_fill_with(grad_b[c], 0.0f);
+        lamp_mat_fill_with(nn->connections[c].grad_w, 0.0f);
+        lamp_mat_fill_with(nn->connections[c].grad_b, 0.0f);
     }
 
     // Process each training sample
@@ -331,81 +421,102 @@ void lamp_nn_backprop(LampNN *nn, const LampMatrix *input, const LampMatrix *tar
             total_loss += sample_loss;
         }
 
-        // Compute deltas
-        LampMatrix **delta = calloc(nn->layer_count, sizeof(LampMatrix *));
+        // Per-sample arena temporaries
+        LampMatrix **delta = nn_arena_alloc(&nn->arena, nn->layer_count * sizeof(LampMatrix *));
+
         for (size_t i = 0; i < nn->layer_count; ++i) {
-            delta[i] = lamp_mat_alloc(
-                nn->layers[i].activations->num_rows,
-                nn->layers[i].activations->num_cols);
-            lamp_mat_fill_with(delta[i], 0.0f);
+            delta[i] = nn_arena_alloc(&nn->arena, sizeof(LampMatrix));
+            delta[i]->num_rows = nn->layers[i].activations->num_rows;
+            delta[i]->num_cols = nn->layers[i].activations->num_cols;
+            delta[i]->elements = nn_arena_alloc(&nn->arena,
+                nn->layers[i].activations->num_rows * nn->layers[i].activations->num_cols * sizeof(LAMP_FLOAT_TYPE));
+            for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(delta[i]); ++e) {
+                delta[i]->elements[e] = 0.0f;
+            }
         }
 
-        // Output layer delta: (activation - target) * sigmoid'(pre_activation)
         size_t out_idx = nn->layer_count - 1;
         LampMatrix *output = nn->layers[out_idx].activations;
         for (size_t i = 0; i < output->num_rows; ++i) {
             LAMP_FLOAT_TYPE act = LAMP_MAT_ELEMENT_AT(output, i, 0);
             LAMP_FLOAT_TYPE pre_act = LAMP_MAT_ELEMENT_AT(nn->layers[out_idx].pre_activations, i, 0);
-            LAMP_FLOAT_TYPE tgt = LAMP_MAT_ELEMENT_AT(target, s, i); // sample s, output i
+            LAMP_FLOAT_TYPE tgt = LAMP_MAT_ELEMENT_AT(target, s, i);
             LAMP_MAT_ELEMENT_AT(delta[out_idx], i, 0) = (act - tgt) * nn->config->derivative(pre_act);
         }
 
-        // Hidden layer deltas (backpropagate)
         for (int c = (int) nn->connection_count - 1; c >= 0; --c) {
             if (c > 0) {
-                LampMatrix *w_trans = lamp_mat_alloc_transpose(nn->connections[c].weights);
-                LampMatrix *delta_in = lamp_mat_alloc_multiply(w_trans, delta[c + 1]);
+                LampMatrix *w_trans = nn->connections[c].weight_trans;
+
+                /* delta_in from arena */
+                LampMatrix *delta_in = nn_arena_alloc(&nn->arena, sizeof(LampMatrix));
+                delta_in->num_rows = nn->layers[c].activations->num_rows;
+                delta_in->num_cols = 1;
+                delta_in->elements = nn_arena_alloc(&nn->arena,
+                    nn->layers[c].activations->num_rows * sizeof(LAMP_FLOAT_TYPE));
+
+                lamp_mat_multiply_into(delta_in, w_trans, delta[c + 1]);
+
                 for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(delta_in); ++e) {
-                    delta_in->elements[e] *= nn->config->derivative(nn->layers[c].pre_activations->elements[e]);
+                    delta_in->elements[e] *= nn->config->derivative(
+                        nn->layers[c].pre_activations->elements[e]);
                 }
                 lamp_mat_copy_into(delta[c], delta_in);
-                lamp_mat_free(w_trans);
-                lamp_mat_free(delta_in);
             }
         }
 
-        // Accumulate gradients for this sample
         for (size_t c = 0; c < nn->connection_count; ++c) {
             LampMatrix *a_in = nn->connections[c].layer_begin->activations;
             LampMatrix *d_out = delta[c + 1];
 
-            LampMatrix *a_in_trans = lamp_mat_alloc_transpose(a_in);
-            LampMatrix *sample_grad = lamp_mat_alloc_multiply(d_out, a_in_trans);
+            LampMatrix *a_in_trans = nn_arena_alloc(&nn->arena, sizeof(LampMatrix));
+            a_in_trans->num_rows = a_in->num_cols;
+            a_in_trans->num_cols = a_in->num_rows;
+            a_in_trans->elements = nn_arena_alloc(&nn->arena,
+                a_in->num_rows * a_in->num_cols * sizeof(LAMP_FLOAT_TYPE));
 
-            lamp_mat_add(grad_w[c], sample_grad);
-            lamp_mat_add(grad_b[c], d_out);
+            LampMatrix *sample_grad = nn_arena_alloc(&nn->arena, sizeof(LampMatrix));
+            sample_grad->num_rows = d_out->num_rows;
+            sample_grad->num_cols = a_in_trans->num_cols;
+            sample_grad->elements = nn_arena_alloc(&nn->arena,
+                d_out->num_rows * a_in_trans->num_cols * sizeof(LAMP_FLOAT_TYPE));
 
-            lamp_mat_free(a_in_trans);
-            lamp_mat_free(sample_grad);
+            for (size_t r = 0; r < a_in->num_rows; ++r) {
+                for (size_t col = 0; col < a_in->num_cols; ++col) {
+                    LAMP_MAT_ELEMENT_AT(a_in_trans, col, r) = LAMP_MAT_ELEMENT_AT(a_in, r, col);
+                }
+            }
+
+            lamp_mat_multiply_into(sample_grad, d_out, a_in_trans);
+
+            for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(nn->connections[c].grad_w); ++e) {
+                nn->connections[c].grad_w->elements[e] += sample_grad->elements[e];
+            }
+
+            for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(nn->connections[c].grad_b); ++e) {
+                nn->connections[c].grad_b->elements[e] += d_out->elements[e];
+            }
         }
 
-        for (size_t i = 0; i < nn->layer_count; ++i) {
-            lamp_mat_free(delta[i]);
-        }
-        free(delta);
+        // Reset arena - all per-sample temporaries discarded
+        nn_arena_reset(&nn->arena);
     }
 
-    // Return average loss (mean squared error per sample)
     if (out_loss != NULL) {
         *out_loss = total_loss / (LAMP_FLOAT_TYPE) num_samples;
     }
 
-    // Apply averaged gradients
     for (size_t c = 0; c < nn->connection_count; ++c) {
         LampNNConnection *conn = &nn->connections[c];
         for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(conn->weights); ++e) {
             conn->weights->elements[e] -=
-                    learning_rate * grad_w[c]->elements[e] / (LAMP_FLOAT_TYPE) num_samples;
+                    learning_rate * conn->grad_w->elements[e] / (LAMP_FLOAT_TYPE) num_samples;
         }
         for (size_t e = 0; e < LAMP_MAT_NUM_ELEMENTS(conn->bias); ++e) {
             conn->bias->elements[e] -=
-                    learning_rate * grad_b[c]->elements[e] / (LAMP_FLOAT_TYPE) num_samples;
+                    learning_rate * conn->grad_b->elements[e] / (LAMP_FLOAT_TYPE) num_samples;
         }
-        lamp_mat_free(grad_w[c]);
-        lamp_mat_free(grad_b[c]);
     }
-    free(grad_w);
-    free(grad_b);
 }
 
 void lamp_nn_print(const LampNN *nn) {
