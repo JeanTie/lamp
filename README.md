@@ -2,11 +2,11 @@
 
 ## Overview
 
-This project is a small, C-based framework for exploring and learning about artifical neural networks and machine learning. It is designed as a personal learning exercise, not intended for prdouction or any serious use. Expect bugs and potentially incorret results!
+This project is a small, C-based framework for exploring and learning about artificial neural networks and machine learning. It is designed as a personal learning exercise, not intended for production or any serious use. Expect bugs and potentially incorrect results!
 
 ## Goals
 
-* To build a basic understanding of neural network concepts trough hands-on coding.
+* To build a basic understanding of neural network concepts through hands-on coding.
 * To experiment with different network architectures, activation functions and training methods.
 * To improve my programming skills.
 * To do something out of my comfort zone.
