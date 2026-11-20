@@ -6,47 +6,42 @@ This project is a small, C-based framework for exploring and learning about arti
 
 ## Goals
 
-* To build a basic understanding of neural network concepts through hands-on coding.
-* To experiment with different network architectures, activation functions and training methods.
-* To improve my programming skills.
-* To do something out of my comfort zone.
+* Build a basic understanding of neural network concepts through hands-on coding.
+* Experiment with different network architectures, activation functions, and training methods.
+* Improve C programming skills.
+* Do something out of my comfort zone.
 
-## Current State
+## Features
 
-This is just the beginning! The framework is in its early stages of development. There are no concrete plans beyond implementing fundamental building blocks.\
-Expect everything to change!
+* **LampMatrix** — hand-rolled linear algebra: matrix allocation, multiplication, addition, transpose, and more.
+* **LampNN** — feed-forward neural network with backpropagation, configurable hidden layers and activation functions.
+* **Arena allocator** — zero mallocs during backpropagation; all per-sample temporaries come from a bump allocator embedded in the network struct.
+* **XOR demo** (`lamp`) — trains a network to solve XOR, with comparisons to logic gate implementations.
+* **Logic gates** (`lamp_example_logic_gates`) — trains the network to behave like AND, OR, XOR, NAND, and XNOR.
+* **Adder circuits** (`lamp_example_adder_circuits`) — trains the network to perform binary addition.
+* **Performance benchmark** (`perf_benchmark`) — measures backpropagation throughput on small and medium networks.
 
-### Features
-* Basic feed forward neural network using back-propagation
-* Examples for training the network to behave like logic gates and adder circuits
+## Planned
 
-## Features (Planned)
-* Examples of different problems that the neural network can solve
-* Visualization
+* More example problems beyond logic gates and adders.
+* Visualization tools.
 
-## Getting started
+## Getting Started
 
-To build the project use [cmake](https://cmake.org/cmake/help/latest/guide/tutorial/index.html), which configures the build system for the project using the `CMakeList.txt` file.
+You need CMake (3.24+) and a C17 compiler.
+
+Configure the build:
 
 ```
 cmake -G Ninja -S . -B build
--- The C compiler identification is GNU 11.2.0
-...
--- Build files have been written to: .../lamp/build
 ```
 
-Build the tests:
-```
-cmake --build build --target lamp_test
--- The C compiler identification is GNU 11.2.0
-...
--- Build files have been written to: .../lamp/build
-```
+Build individual targets:
 
-
-Build the logic gates example:
 ```
+cmake --build build --target lamp
+cmake --build build --target lamp_tests
 cmake --build build --target lamp_example_logic_gates
-...
--- Build finished
+cmake --build build --target lamp_example_adder_circuits
+cmake --build build --target perf_benchmark
 ```
