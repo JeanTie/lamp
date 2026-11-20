@@ -24,6 +24,13 @@ set(LAMP_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src
 )
 
+# Release build optimization flags per compiler
+if(MSVC)
+    add_compile_options($<$<CONFIG:Release>:/O2> $<$<CONFIG:Release>:/arch:AVX2>)
+else()
+    add_compile_options($<$<CONFIG:Release>:-O3> $<$<CONFIG:Release>:-march=native> $<$<CONFIG:Release>:-ffast-math>)
+endif()
+
 set(LAMP_TARGETS
     lamp
     lamp_tests
